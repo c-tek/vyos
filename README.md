@@ -241,3 +241,12 @@ curl -X POST "http://localhost:8000/vms/provision" \
 ## Discoverability
 - Example `install.sh` script and `vyos-api.service` systemd unit are provided in the repo for automated setup.
 - See `install.sh` in the repo root and `docs/vyos-api.service` for details.
+
+
+
+## License and Usage
+This software is released under a Creative Commons Attribution-NonCommercial **(CC BY-NC)** style license. You are free to use, modify, and distribute this software for non-commercial purposes only, provided that appropriate credit is given to the original author.
+
+Commercial use is strictly prohibited without prior written permission. If you wish to use this software for commercial purposes or in any commercial context, please contact the author to obtain a commercial use license.
+
+All rights, including copyright and ownership, remain with the author.
