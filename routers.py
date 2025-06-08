@@ -7,6 +7,7 @@ from models import PortType, PortStatus
 from vyos import vyos_api_call, generate_port_forward_commands
 from crud import get_api_key, get_db
 from sqlalchemy.exc import OperationalError
+from sqlalchemy import text
 import os
 
 router = APIRouter()
@@ -121,7 +122,7 @@ def health_check():
     # Check DB connectivity
     try:
         db = SessionLocal()
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db.close()
         db_status = "ok"
     except OperationalError:

@@ -61,7 +61,7 @@ async def audit_log_middleware(request: Request, call_next):
     logging.info(f"{request.method} {request.url.path} user={user or 'unknown'} status={response.status_code}")
     return response
 
-app.include_router(router)
+app.include_router(router, prefix="/v1")
 app.add_middleware(SlowAPIMiddleware)
 
 @app.get("/")
