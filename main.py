@@ -10,8 +10,15 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt as pyjwt
 from schemas import LoginRequest
+from models import create_db_tables
+from config import engine
 
 app = FastAPI(title="VyOS VM Network Automation API")
+
+# Create database tables on startup
+@app.on_event("startup")
+def on_startup():
+    create_db_tables(engine)
 
 # Audit logging setup
 logging.basicConfig(

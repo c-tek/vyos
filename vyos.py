@@ -1,16 +1,7 @@
 import requests
 from config import get_vyos_config
-import os
-
-# Flag to control mocking
-MOCK_VYOS_API = os.getenv("MOCK_VYOS_API", "true").lower() == "true"
 
 def vyos_api_call(commands, operation="set"):
-    if MOCK_VYOS_API:
-        print(f"MOCK VYOS API Call: operation={operation}, commands={commands}")
-        # Simulate a successful response
-        return {"status": "success", "data": {"code": 200, "message": "Mock command executed successfully"}}
-    
     vyos_cfg = get_vyos_config()
     url = f"https://{vyos_cfg['VYOS_IP']}:{vyos_cfg['VYOS_API_PORT']}/config"
     payload = {

@@ -33,3 +33,6 @@ class VMPortRule(Base):
     status = Column(Enum(PortStatus), default=PortStatus.enabled)
     nat_rule_number = Column(Integer, unique=True)
     vm = relationship("VMNetworkConfig", back_populates="ports")
+
+def create_db_tables(engine):
+    Base.metadata.create_all(bind=engine)
