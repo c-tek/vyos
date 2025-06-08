@@ -9,15 +9,15 @@ from crud import get_api_key, get_db
 from sqlalchemy.exc import OperationalError
 import os
 
-router = APIRouter(prefix="/v1")
+router = APIRouter()
 
 from .vms import router as vms
 from .status import router as status
 from .mcp import router as mcp
 
-router.include_router(vms, prefix="/vms", tags=["VMs"])
-router.include_router(status, prefix="/status", tags=["Status"])
-router.include_router(mcp, prefix="/mcp", tags=["MCP"])
+router.include_router(vms, prefix="/v1/vms", tags=["VMs"])
+router.include_router(status, prefix="/v1/status", tags=["Status"])
+router.include_router(mcp, prefix="/v1/mcp", tags=["MCP"])
 
 def get_db():
     db = SessionLocal()

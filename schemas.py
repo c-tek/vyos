@@ -46,3 +46,6 @@ class MCPRequest(BaseModel):
 class MCPResponse(BaseModel):
     context: dict
     output: dict
+
+class VMDecommissionRequest(BaseModel):
+    vm_name: str
