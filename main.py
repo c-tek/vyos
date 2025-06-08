@@ -1,14 +1,11 @@
 from fastapi import FastAPI
 import os
-from routers import vms, ports, status, mcp
+from routers import router
 
 app = FastAPI(title="VyOS VM Network Automation API")
 
-# Include routers
-app.include_router(vms.router, prefix="/vms", tags=["VMs"])
-app.include_router(ports.router, prefix="/ports", tags=["Ports"])
-app.include_router(status.router, prefix="/status", tags=["Status"])
-app.include_router(mcp.router, prefix="/mcp", tags=["MCP"])
+# Include all endpoints from the unified router
+app.include_router(router)
 
 @app.get("/")
 def root():

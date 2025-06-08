@@ -5,9 +5,18 @@ from typing import List, Optional, Tuple, Dict, Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import APIKeyHeader
 import os
+from config import SessionLocal
 
 API_KEYS = set(k.strip() for k in os.getenv("VYOS_API_KEYS", "changeme").split(",") if k.strip())
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+# Utility: shared DB session dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 def get_api_key(api_key: str = Depends(api_key_header)):
     if api_key not in API_KEYS:

@@ -12,6 +12,9 @@ from .status import router as status
 from .mcp import router as mcp
 
 router = APIRouter()
+router.include_router(vms, prefix="/vms", tags=["VMs"])
+router.include_router(status, prefix="/status", tags=["Status"])
+router.include_router(mcp, prefix="/mcp", tags=["MCP"])
 
 def get_db():
     db = SessionLocal()
