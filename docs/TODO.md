@@ -5,6 +5,7 @@
 - Detailed port status in /ports/status
 - Full VyOS router installation and integration guide
 - Example scenarios and workflow documentation
+- [x] Local JWT authentication option (configurable, no external dependency)
 
 ## In Progress / Planned
 - VM decommission/delete endpoint (remove VM and NAT rules)

@@ -1,7 +1,8 @@
 # API Reference: VyOS VM Network Automation API
 
 ## Authentication
-All endpoints require an API key via the `X-API-Key` header.
+- API Key: Set `X-API-Key` header.
+- JWT: Set `Authorization: Bearer <token>` header. Obtain token from `/auth/jwt`.
 
 ## Required Headers
 All endpoints require:

@@ -103,5 +103,9 @@ print(response.json())
 ## VyOS Router Integration
 For a full installation and integration guide, see `vyos-installation.md` in this folder. It covers VyOS API setup, API app deployment, and usage.
 
+## Authentication
+- **API Key**: Set `X-API-Key` header.
+- **JWT**: Set `Authorization: Bearer <token>` header. Obtain token from `/auth/jwt`.
+
 ---
 For more, see `networking.md` and `api-reference.md`.

@@ -10,6 +10,27 @@
 
 ---
 
+# Authentication
+
+- **API Key**: Pass `X-API-Key: your-api-key` header.
+- **JWT**: Pass `Authorization: Bearer <jwt-token>` header. Obtain a token from `/auth/jwt` endpoint.
+
+## Example: Get JWT Token
+```python
+import requests
+resp = requests.post('http://localhost:8800/auth/jwt', data={'username': 'user', 'password': 'pass'})
+token = resp.json()['access_token']
+```
+
+## Example: Use JWT Token
+```python
+headers = {"Authorization": f"Bearer {token}"}
+response = requests.get("http://localhost:8800/ports/status", headers=headers)
+print(response.json())
+```
+
+---
+
 # Example Categories
 - **Python**: Using the `requests` library
 - **Curl**: Command-line HTTP requests

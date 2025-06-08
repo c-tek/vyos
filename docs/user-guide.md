@@ -54,6 +54,10 @@ uvicorn main:app --reload --port $VYOS_API_PORT
 - All endpoints require an API key via the `X-API-Key` header.
 - See `api-reference.md` for endpoint details.
 
+## Authentication
+- **API Key**: Set `X-API-Key` header.
+- **JWT**: Set `Authorization: Bearer <token>` header. Obtain token from `/auth/jwt`.
+
 ## Example: Provision a VM
 ```http
 POST /vms/provision

@@ -93,6 +93,7 @@ X-API-Key: <your-api-key>
 ## Security
 - All endpoints require an API key via the `X-API-Key` header.
 - Change the default API key in `crud.py` for production.
+- **Authentication**: Now supports both API Key (X-API-Key) and local JWT (Authorization: Bearer ...). See security.md and EXAMPLES.md for details.
 
 ## API Key Management
 
