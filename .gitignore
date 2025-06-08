@@ -32,7 +32,10 @@ htmlcov/
 # Misc
 *.swp
 *.swo
+*.log
 
 #internal files
 docs/processes.md
+vyos.code-workspaces
 
+vyos.code-workspace
