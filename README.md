@@ -10,6 +10,14 @@ This project provides a FastAPI-based service for managing static DHCP assignmen
 - Ready for MCP integration
 - API key authentication for all endpoints
 
+## Documentation
+- [Installation Guide](docs/vyos-installation.md)
+- [API Reference](docs/api-reference.md)
+- [Example Usage](docs/EXAMPLES.md)
+- [Security Guide](docs/security.md)
+- [Development Processes](docs/processes.md)
+- [How to Extend](docs/how-to-extend.md)
+
 ## Requirements
 
 All Python dependencies are listed in `requirements.txt`.
