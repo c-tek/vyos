@@ -41,9 +41,11 @@ Edit `config.py` or set environment variables for:
 
 ## Running the API
 ```bash
-uvicorn main:app --reload
+# Default port is 8800, but you can override with the VYOS_API_PORT environment variable
+export VYOS_API_PORT=8080  # Example: run on port 8080
+uvicorn main:app --reload --port $VYOS_API_PORT
 ```
-The API will be available at `http://localhost:8000/`.
+The API will be available at `http://localhost:8800/` by default, or at the port you specify.
 
 ## Usage
 
@@ -113,4 +115,64 @@ X-API-Key: key1
 ## MCP Integration
 - Use `/mcp/provision` and `/mcp/decommission` for Model Context Protocol/AI workflows.
 
----
+## Example Scenarios & Code Snippets
+
+### 1. Provision a VM via API (Python requests)
+```python
+import requests
+
+url = "http://localhost:8000/vms/provision"
+headers = {"X-API-Key": "your-api-key"}
+payload = {
+    "vm_name": "server-01",
+    "mac_address": "00:11:22:33:44:AA"
+}
+response = requests.post(url, json=payload, headers=headers)
+print(response.json())
+```
+
+### 2. Provision a VM with Custom IP Range
+```python
+payload = {
+    "vm_name": "server-02",
+    "ip_range": {"base": "192.168.66.", "start": 10, "end": 50}
+}
+response = requests.post(url, json=payload, headers=headers)
+print(response.json())
+```
+
+### 3. Pause Ports for a VM
+```python
+url = "http://localhost:8000/vms/server-01/ports/template"
+payload = {"action": "pause", "ports": ["ssh", "http"]}
+response = requests.post(url, json=payload, headers=headers)
+print(response.json())
+```
+
+### 4. Enable a Single Port
+```python
+url = "http://localhost:8000/vms/server-01/ports/ssh"
+payload = {"action": "enable"}
+response = requests.post(url, json=payload, headers=headers)
+print(response.json())
+```
+
+### 5. Get Status of All VMs
+```python
+url = "http://localhost:8000/ports/status"
+response = requests.get(url, headers=headers)
+print(response.json())
+```
+
+### 6. Example: Using curl
+```bash
+curl -X POST "http://localhost:8000/vms/provision" \
+     -H "X-API-Key: your-api-key" \
+     -H "Content-Type: application/json" \
+     -d '{"vm_name": "server-01", "mac_address": "00:11:22:33:44:AA"}'
+```
+
+## Troubleshooting
+- **Port already in use:** If you see an error about port 8800 being in use, set a different port with `export VYOS_API_PORT=8080` before starting the API.
+- **Database locked:** Ensure no other process is using `vyos.db` or switch to a production database.
+- **401 Unauthorized:** Make sure you are sending the correct `X-API-Key` header.

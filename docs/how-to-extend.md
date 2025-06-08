@@ -24,5 +24,71 @@
 - Update the `PortType` enum in `models.py` and all relevant logic.
 - Update the API and UI to allow selection of new port types.
 
+## Customizing the API Port
+You can change the API port by setting the `VYOS_API_PORT` environment variable before starting the server:
+```bash
+export VYOS_API_PORT=8080
+uvicorn main:app --reload --port $VYOS_API_PORT
+```
+
+## Example: Error Handling in Python Client
+```python
+response = requests.post(url, json=payload, headers=headers)
+if response.status_code == 200:
+    print(response.json())
+else:
+    print(f"Error {response.status_code}: {response.text}")
+```
+
+## Full Workflow Example
+```python
+# 1. Provision a VM
+provision = requests.post("http://localhost:8800/vms/provision", json={"vm_name": "demo-vm"}, headers=headers)
+print(provision.json())
+
+# 2. Pause SSH port
+pause = requests.post("http://localhost:8800/vms/demo-vm/ports/template", json={"action": "pause", "ports": ["ssh"]}, headers=headers)
+print(pause.json())
+
+# 3. Get status
+status = requests.get("http://localhost:8800/ports/status", headers=headers)
+print(status.json())
+
+# 4. (Optional) Decommission via MCP
+mcp = requests.post("http://localhost:8800/mcp/decommission", json={"context": {}, "input": {}}, headers=headers)
+print(mcp.json())
+```
+
+## Example: Extend with Custom Port Range
+```python
+payload = {
+    "vm_name": "custom-vm",
+    "port_range": {"start": 35000, "end": 36000}
+}
+response = requests.post("http://localhost:8000/vms/provision", json=payload, headers={"X-API-Key": "your-api-key"})
+print(response.json())
+```
+
+## Example: Add a New Port Type
+1. Update the `PortType` enum in `models.py`:
+```python
+class PortType(enum.Enum):
+    ssh = "ssh"
+    http = "http"
+    https = "https"
+    ftp = "ftp"  # New port type
+```
+2. Update all relevant logic in `crud.py`, `routers.py`, and the API docs to support the new port type.
+
+## Example: Multi-Subnet Provisioning
+```python
+payload = {
+    "vm_name": "multi-subnet-vm",
+    "ip_range": {"base": "10.10.10.", "start": 10, "end": 20}
+}
+response = requests.post("http://localhost:8000/vms/provision", json=payload, headers={"X-API-Key": "your-api-key"})
+print(response.json())
+```
+
 ---
 For more, see `networking.md` and `api-reference.md`.

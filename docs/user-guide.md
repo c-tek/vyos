@@ -31,9 +31,24 @@ This guide explains how to install, configure, and use the VyOS VM Network Autom
   - `VYOS_PORT_START`, `VYOS_PORT_END` (for port range)
 
 ## Running the API
+By default, the API runs on port 8800. You can change this by setting the `VYOS_API_PORT` environment variable:
+
 ```bash
-uvicorn main:app --reload
+export VYOS_API_PORT=8080  # Use port 8080 instead of 8800
+uvicorn main:app --reload --port $VYOS_API_PORT
 ```
+
+## Changing the API Port
+By default, the API runs on port 8800. To use a different port:
+```bash
+export VYOS_API_PORT=8080
+uvicorn main:app --reload --port $VYOS_API_PORT
+```
+
+## Error Responses & Troubleshooting
+- **401 Unauthorized:** Check your API key.
+- **404 Not Found:** Check the endpoint and resource identifiers.
+- **500 Internal Server Error:** See server logs for details.
 
 ## Basic Usage
 - All endpoints require an API key via the `X-API-Key` header.
