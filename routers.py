@@ -6,12 +6,15 @@ import crud
 from models import PortType, PortStatus
 from vyos import vyos_api_call, generate_port_forward_commands
 from crud import get_api_key, get_db
+from sqlalchemy.exc import OperationalError
+import os
+
+router = APIRouter(prefix="/v1")
 
 from .vms import router as vms
 from .status import router as status
 from .mcp import router as mcp
 
-router = APIRouter()
 router.include_router(vms, prefix="/vms", tags=["VMs"])
 router.include_router(status, prefix="/status", tags=["Status"])
 router.include_router(mcp, prefix="/mcp", tags=["MCP"])

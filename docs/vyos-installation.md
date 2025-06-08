@@ -95,6 +95,13 @@ pip install fastapi uvicorn sqlalchemy pydantic requests
 venv/bin/python -c 'from models import Base; from config import engine; Base.metadata.create_all(bind=engine)'
 ```
 
+### Requirements
+
+All dependencies are listed in `requirements.txt`. Install with:
+```bash
+pip install -r requirements.txt
+```
+
 ---
 
 ## 6. Configuration
@@ -132,14 +139,21 @@ Description=VyOS VM Network Automation API
 After=network.target
 
 [Service]
-User=youruser
-WorkingDirectory=/path/to/vyos-automation
-EnvironmentFile=/path/to/vyos-automation/.env
-ExecStart=/path/to/vyos-automation/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8800
+User=vyos  # or your user
+WorkingDirectory=/path/to/vyos
+ExecStart=/path/to/vyos/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8800
 Restart=always
+EnvironmentFile=/path/to/vyos/.env
 
 [Install]
 WantedBy=multi-user.target
+```
+Reload systemd and start the service:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable vyos-api
+sudo systemctl start vyos-api
+sudo systemctl status vyos-api
 ```
 
 ---
@@ -214,6 +228,28 @@ curl -X GET "http://localhost:8800/ports/status" -H "X-API-Key: your-api-key"
 - Remove the systemd service if used.
 
 ---
+
+## Optional: install.sh for Debian/Ubuntu
+
+You can automate setup with an install script. Example:
+```bash
+#!/bin/bash
+set -e
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip git
+cd /opt
+sudo git clone https://github.com/c-tek/vyos.git vyos-api
+cd vyos-api
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+# (Optional) Copy systemd unit and enable service
+```
+
+## VyOS OS Note
+- VyOS is Debian-based, but not all images have Python3/pip/systemd for user services.
+- **Recommended:** Run the API app on a management VM/server, not directly on VyOS, unless you have a custom build.
+- Document both options in the install guide.
 
 ## References
 - [VyOS Official Documentation](https://docs.vyos.io/en/latest/)

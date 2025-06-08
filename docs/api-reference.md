@@ -109,5 +109,12 @@ response = requests.get(url, headers=headers)
 print(response.json())
 ```
 
+## Notes
+- All dependencies are listed in `requirements.txt`.
+- Install with `pip install -r requirements.txt`.
+- For production, run as a systemd service (see install guide).
+- Optionally use `install.sh` for automated setup on Debian/Ubuntu.
+- VyOS OS: Prefer running on a management VM/server, not directly on VyOS unless custom build.
+
 ---
 See `user-guide.md` for usage examples and `networking.md` for allocation logic.

@@ -80,5 +80,12 @@ You can pass an optional `ip_range` in the request body to allocate from a custo
 ## VyOS Integration
 For a full tutorial on preparing your VyOS router and integrating with this API, see `vyos-installation.md` in this folder.
 
+## Notes
+- All dependencies are listed in `requirements.txt`.
+- Install with `pip install -r requirements.txt`.
+- For production, run as a systemd service (see install guide).
+- Optionally use `install.sh` for automated setup on Debian/Ubuntu.
+- VyOS OS: Prefer running on a management VM/server, not directly on VyOS unless custom build.
+
 ---
 For advanced usage, see the other documentation files in this folder.

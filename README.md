@@ -11,25 +11,62 @@ This project provides a FastAPI-based service for managing static DHCP assignmen
 - API key authentication for all endpoints
 
 ## Requirements
-- Python 3.8+
-- SQLite (default) or another supported DB
-- VyOS router with API enabled
 
-## Installation
+All Python dependencies are listed in `requirements.txt`.
+Install with:
 ```bash
-# 1. Clone the repo
-cd ~/work/vyos
+pip install -r requirements.txt
+```
 
-# 2. Create a virtual environment
+## Running as a Service (systemd)
+
+To run the API as a background service (daemon), create a systemd unit file:
+
+1. Create `/etc/systemd/system/vyos-api.service`:
+    ```ini
+    [Unit]
+    Description=VyOS VM Network Automation API
+    After=network.target
+
+    [Service]
+    User=vyos  # or your user
+    WorkingDirectory=/path/to/vyos
+    ExecStart=/path/to/vyos/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8800
+    Restart=always
+    EnvironmentFile=/path/to/vyos/.env
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+2. Reload systemd and start the service:
+    ```bash
+    sudo systemctl daemon-reload
+    sudo systemctl enable vyos-api
+    sudo systemctl start vyos-api
+    sudo systemctl status vyos-api
+    ```
+
+## Optional: install.sh for Debian/Ubuntu
+
+You can automate setup with an install script. Example:
+```bash
+#!/bin/bash
+set -e
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip git
+cd /opt
+sudo git clone https://github.com/c-tek/vyos.git vyos-api
+cd vyos-api
 python3 -m venv venv
 source venv/bin/activate
-
-# 3. Install dependencies
-pip install fastapi uvicorn sqlalchemy pydantic requests
-
-# 4. Initialize the database
-venv/bin/python -c 'from models import Base; from config import engine; Base.metadata.create_all(bind=engine)'
+pip install -r requirements.txt
+# (Optional) Copy systemd unit and enable service
 ```
+
+## VyOS OS Note
+- VyOS is Debian-based, but not all images have Python3/pip/systemd for user services.
+- **Recommended:** Run the API app on a management VM/server, not directly on VyOS, unless you have a custom build.
+- Document both options in the install guide.
 
 ## Configuration
 Edit `config.py` or set environment variables for:
@@ -52,9 +89,11 @@ See `docs/vyos-installation.md` for a full step-by-step tutorial on integrating 
 
 ## Usage
 
+All API endpoints are prefixed with `/v1`. For example:
+
 ### Provision a VM
 ```http
-POST /vms/provision
+POST /v1/vms/provision
 X-API-Key: <your-api-key>
 {
   "vm_name": "server-01",
@@ -65,7 +104,7 @@ Returns assigned IP, external ports, and NAT rule base.
 
 ### Manage Ports (Template)
 ```http
-POST /vms/{machine_id}/ports/template
+POST /v1/vms/{machine_id}/ports/template
 X-API-Key: <your-api-key>
 {
   "action": "pause", // or "create", "delete"
@@ -75,7 +114,7 @@ X-API-Key: <your-api-key>
 
 ### Manage Ports (Granular)
 ```http
-POST /vms/{machine_id}/ports/{port_name}
+POST /v1/vms/{machine_id}/ports/{port_name}
 X-API-Key: <your-api-key>
 {
   "action": "enable" // or "disable"
@@ -84,9 +123,9 @@ X-API-Key: <your-api-key>
 
 ### Get Status
 ```http
-GET /vms/{machine_id}/ports/status
+GET /v1/vms/{machine_id}/ports/status
 X-API-Key: <your-api-key>
-GET /ports/status
+GET /v1/ports/status
 X-API-Key: <your-api-key>
 ```
 
@@ -190,3 +229,7 @@ curl -X POST "http://localhost:8000/vms/provision" \
 - **Port already in use:** If you see an error about port 8800 being in use, set a different port with `export VYOS_API_PORT=8080` before starting the API.
 - **Database locked:** Ensure no other process is using `vyos.db` or switch to a production database.
 - **401 Unauthorized:** Make sure you are sending the correct `X-API-Key` header.
+
+## Discoverability
+- Example `install.sh` script and `vyos-api.service` systemd unit are provided in the repo for automated setup.
+- See `install.sh` in the repo root and `docs/vyos-api.service` for details.
