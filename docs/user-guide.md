@@ -73,5 +73,8 @@ You can pass an optional `ip_range` in the request body to allocate from a custo
 }
 ```
 
+## VyOS Integration
+For a full tutorial on preparing your VyOS router and integrating with this API, see `vyos-installation.md` in this folder.
+
 ---
 For advanced usage, see the other documentation files in this folder.

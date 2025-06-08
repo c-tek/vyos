@@ -47,6 +47,9 @@ uvicorn main:app --reload --port $VYOS_API_PORT
 ```
 The API will be available at `http://localhost:8800/` by default, or at the port you specify.
 
+## Quick Start for VyOS Integration
+See `docs/vyos-installation.md` for a full step-by-step tutorial on integrating this API with your VyOS router, including VyOS config, API setup, and usage examples.
+
 ## Usage
 
 ### Provision a VM

@@ -100,5 +100,8 @@ response = requests.post("http://localhost:8000/vms/provision", json=payload, he
 print(response.json())
 ```
 
+## VyOS Router Integration
+For a full installation and integration guide, see `vyos-installation.md` in this folder. It covers VyOS API setup, API app deployment, and usage.
+
 ---
 For more, see `networking.md` and `api-reference.md`.
