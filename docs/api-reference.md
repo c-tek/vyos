@@ -18,7 +18,8 @@ X-API-Key: <your-api-key>
   {
     "vm_name": "server-01",
     "mac_address": "00:11:22:33:44:AA",
-    "ip_range": { "base": "192.168.66.", "start": 10, "end": 50 } // optional
+    "ip_range": { "base": "192.168.66.", "start": 10, "end": 50 }, // optional
+    "port_range": { "start": 35000, "end": 35010 } // optional
   }
   ```
 - Response:

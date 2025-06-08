@@ -14,6 +14,16 @@
 - You can extend the API to accept a `port_range` object per request.
 - Update the allocation logic to use the provided range if present.
 
+## Custom Port Range Per Request
+- Add a `port_range` object to your provision request:
+  ```json
+  {
+    "vm_name": "custom-vm",
+    "port_range": { "start": 35000, "end": 35010 }
+  }
+  ```
+- The backend will allocate external ports for this VM from the specified range only.
+
 ## Multi-Subnet Support
 - To support multiple DHCP subnets, extend the backend to:
   - Accept a `subnet` or `dhcp_pool` parameter per request.

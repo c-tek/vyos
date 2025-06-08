@@ -31,8 +31,10 @@ def provision_vm(req: VMProvisionRequest, db: Session = Depends(get_db)):
         ext_ports = {}
         port_types = ["ssh", "http", "https"]
         port_allocs = []
+        # Use per-request port_range if provided
+        port_range = req.port_range if req.port_range else None
         for port in port_types:
-            ext_port = crud.find_next_available_port(db, req.port_range)
+            ext_port = crud.find_next_available_port(db, port_range)
             ext_ports[port] = ext_port
             port_allocs.append(ext_port)
         # Create VM in DB

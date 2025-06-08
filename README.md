@@ -141,6 +141,16 @@ response = requests.post(url, json=payload, headers=headers)
 print(response.json())
 ```
 
+### 2b. Provision a VM with Custom Port Range
+```python
+payload = {
+    "vm_name": "server-03",
+    "port_range": {"start": 35000, "end": 35010}
+}
+response = requests.post(url, json=payload, headers=headers)
+print(response.json())
+```
+
 ### 3. Pause Ports for a VM
 ```python
 url = "http://localhost:8000/vms/server-01/ports/template"
