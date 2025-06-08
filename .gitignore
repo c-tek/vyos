@@ -1,0 +1,34 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+venv/
+
+# SQLite database
+vyos.db
+
+# VS Code settings
+.vscode/
+vyos.code-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Python egg
+*.egg-info/
+
+dist/
+build/
+
+# Logs
+*.log
+
+# Test output
+htmlcov/
+.coverage
+
+# Misc
+*.swp
+*.swo
