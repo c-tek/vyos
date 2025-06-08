@@ -48,6 +48,20 @@ X-API-Key: <your-api-key>
 ### Get Status
 `GET /vms/{machine_id}/ports/status`
 `GET /ports/status`
+- Response:
+```json
+[
+  {
+    "machine_id": "server-01",
+    "internal_ip": "192.168.64.100",
+    "ports": {
+      "ssh": {"status": "enabled", "external_port": 32000, "nat_rule_number": 10001},
+      "http": {"status": "enabled", "external_port": 32001, "nat_rule_number": 10002},
+      "https": {"status": "not_active", "external_port": null, "nat_rule_number": null}
+    }
+  }
+]
+```
 
 ### MCP Endpoints
 `POST /mcp/provision`

@@ -24,11 +24,15 @@ class VMStatusResponse(BaseModel):
     http: str
     https: str
 
+class VMPortDetail(BaseModel):
+    status: str
+    external_port: int | None
+    nat_rule_number: int | None
+
 class AllVMStatusResponse(BaseModel):
     machine_id: str
-    ssh: str
-    http: str
-    https: str
+    internal_ip: str
+    ports: dict[str, VMPortDetail]
 
 class VMPortStatus(BaseModel):
     port_type: str

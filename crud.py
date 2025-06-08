@@ -57,11 +57,17 @@ def set_port_status(db: Session, vm: VMNetworkConfig, port_type: PortType, statu
 
 def get_vm_ports_status(db: Session, vm: VMNetworkConfig):
     rules = db.query(VMPortRule).filter_by(vm=vm).all()
-    ports = {r.port_type.value: r.status.value for r in rules}
+    ports = {}
+    for r in rules:
+        ports[r.port_type.value] = {
+            "status": r.status.value,
+            "external_port": r.external_port,
+            "nat_rule_number": r.nat_rule_number
+        }
     # Ensure all port types are present
     for p in ["ssh", "http", "https"]:
         if p not in ports:
-            ports[p] = "not_active"
+            ports[p] = {"status": "not_active", "external_port": None, "nat_rule_number": None}
     return ports
 
 def get_all_vms_status(db: Session):
@@ -69,7 +75,11 @@ def get_all_vms_status(db: Session):
     result = []
     for vm in vms:
         ports = get_vm_ports_status(db, vm)
-        result.append({"machine_id": vm.machine_id, **ports})
+        result.append({
+            "machine_id": vm.machine_id,
+            "internal_ip": vm.internal_ip,
+            "ports": ports
+        })
     return result
 
 def get_configured_ip_range() -> Tuple[str, int, int]:
