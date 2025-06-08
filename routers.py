@@ -11,9 +11,9 @@ import os
 
 router = APIRouter()
 
-from .vms import router as vms
-from .status import router as status
-from .mcp import router as mcp
+from vms import router as vms
+from status import router as status
+from mcp import router as mcp
 
 router.include_router(vms, prefix="/v1/vms", tags=["VMs"])
 router.include_router(status, prefix="/v1/status", tags=["Status"])

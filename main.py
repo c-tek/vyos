@@ -4,10 +4,12 @@ import os
 from routers import router
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
-from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt as pyjwt
+from schemas import LoginRequest
 
 app = FastAPI(title="VyOS VM Network Automation API")
 
@@ -52,12 +54,8 @@ async def audit_log_middleware(request: Request, call_next):
     logging.info(f"{request.method} {request.url.path} user={user or 'unknown'} status={response.status_code}")
     return response
 
-@app.middleware("http")
-async def rate_limit_middleware(request: Request, call_next):
-    response = await limiter(request, call_next)
-    return response
-
 app.include_router(router)
+app.add_middleware(SlowAPIMiddleware)
 
 @app.get("/")
 def root():
@@ -65,10 +63,10 @@ def root():
 
 # Example: JWT login endpoint (for demo, not for production use)
 @app.post("/auth/jwt")
-def login_jwt(username: str, password: str):
+def login_jwt(req: LoginRequest):
     # For demo: accept any username/password, in production check securely
-    if username and password:
-        token = pyjwt.encode({"sub": username}, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    if req.username and req.password:
+        token = pyjwt.encode({"sub": req.username}, JWT_SECRET, algorithm=JWT_ALGORITHM)
         return {"access_token": token, "token_type": "bearer"}
     raise HTTPException(status_code=401, detail="Invalid credentials")
 

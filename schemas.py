@@ -49,3 +49,7 @@ class MCPResponse(BaseModel):
 
 class VMDecommissionRequest(BaseModel):
     vm_name: str
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
