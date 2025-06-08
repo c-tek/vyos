@@ -18,7 +18,7 @@ This project provides a FastAPI-based service for managing static DHCP assignmen
 ## Installation
 ```bash
 # 1. Clone the repo
-cd /home/ctek/work/vyos
+cd ~/work/vyos
 
 # 2. Create a virtual environment
 python3 -m venv venv
