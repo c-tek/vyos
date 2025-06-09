@@ -16,22 +16,15 @@ from vms import router as vms
 from status import router as status
 from mcp import router as mcp
 
-router.include_router(vms, prefix="/v1/vms", tags=["VMs"])
-router.include_router(status, prefix="/v1/status", tags=["Status"])
-router.include_router(mcp, prefix="/v1/mcp", tags=["MCP"])
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+router.include_router(vms, prefix="/vms", tags=["VMs"])
+router.include_router(status, prefix="/status", tags=["Status"])
+router.include_router(mcp, prefix="/mcp", tags=["MCP"])
 
 @router.post("/provision", response_model=VMProvisionResponse, dependencies=[Depends(get_api_key)])
 def provision_vm(req: VMProvisionRequest, db: Session = Depends(get_db)):
     try:
         machine_id = req.vm_name
-        mac_address = req.mac_address or "00:11:22:33:44:AA"
+        mac_address = req.mac_address
         # Use per-request ip_range if provided
         internal_ip = crud.find_next_available_ip(db, req.ip_range)
         nat_rule_base = crud.find_next_nat_rule_number(db)
