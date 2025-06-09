@@ -10,48 +10,8 @@
 
 ---
 
-# Authentication
-
-- **API Key**: Pass `X-API-Key: your-api-key` header.
-- **JWT**: Pass `Authorization: Bearer <jwt-token>` header. Obtain a token from `/auth/jwt` endpoint.
-
-## Example: Get JWT Token
-```python
-import httpx
-import asyncio
-
-async def get_jwt_token():
-    async with httpx.AsyncClient() as client:
-        resp = await client.post('http://localhost:8800/auth/jwt', data={'username': 'user', 'password': 'pass'})
-        resp.raise_for_status()
-        token = resp.json()['access_token']
-        print(f"JWT Token: {token}")
-        return token
-
-if __name__ == "__main__":
-    asyncio.run(get_jwt_token())
-```
-
-## Example: Use JWT Token
-```python
-async def use_jwt_token(token: str):
-    headers = {"Authorization": f"Bearer {token}"}
-    async with httpx.AsyncClient() as client:
-        response = await client.get("http://localhost:8800/ports/status", headers=headers)
-        response.raise_for_status()
-        print(response.json())
-
-if __name__ == "__main__":
-    # This assumes you have a token from a previous call or hardcoded for testing
-    # token = "your_jwt_token_here"
-    # asyncio.run(use_jwt_token(token))
-    pass # Placeholder, as this example depends on a token
-```
-
----
-
 # Example Categories
-- **Python**: Using the `requests` library
+- **Python**: Using the `httpx` library (for async examples) or `requests` (for sync examples, if applicable)
 - **Curl**: Command-line HTTP requests
 - **Postman**: GUI-based API testing
 

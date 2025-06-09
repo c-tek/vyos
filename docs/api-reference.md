@@ -226,56 +226,7 @@ Here are some common error responses you might encounter:
 
 ## Examples
 
-### Example: Provision a VM (Python)
-```python
-import httpx
-import asyncio
-
-async def provision_vm():
-    url = "http://localhost:8000/v1/vms/provision"
-    headers = {"X-API-Key": "your-api-key"}
-    payload = {"vm_name": "server-01", "mac_address": "00:11:22:33:44:AA"}
-    async with httpx.AsyncClient() as client:
-        response = await client.post(url, json=payload, headers=headers)
-        response.raise_for_status() # Raise an exception for 4xx or 5xx responses
-        print(response.json())
-
-if __name__ == "__main__":
-    asyncio.run(provision_vm())
-```
-
-### Example: Pause Ports (curl)
-```bash
-curl -X POST "http://localhost:8000/v1/vms/server-01/ports/template" \
-     -H "X-API-Key: your-api-key" \
-     -H "Content-Type: application/json" \
-     -d '{"action": "pause", "ports": ["ssh", "http"]}'
-```
-
-### Example: Get All VM Status (Python)
-```python
-import httpx
-import asyncio
-
-async def get_all_vm_status():
-    url = "http://localhost:8000/v1/status/ports"
-    headers = {"X-API-Key": "your-api-key"}
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url, headers=headers)
-        response.raise_for_status() # Raise an exception for 4xx or 5xx responses
-        print(response.json())
-
-if __name__ == "__main__":
-    asyncio.run(get_all_vm_status())
-```
-
-### Example: Create Admin API Key (curl)
-```bash
-curl -X POST "http://localhost:8000/v1/admin/api-keys" \
-     -H "X-API-Key: your-initial-admin-key" \
-     -H "Content-Type: application/json" \
-     -d '{"description": "New Admin Key", "is_admin": true}'
-```
+For detailed code examples in Python, Curl, and Postman, please refer to [`docs/EXAMPLES.md`](docs/EXAMPLES.md).
 
 ## Notes
 - All dependencies are listed in `requirements.txt`.
@@ -285,4 +236,4 @@ curl -X POST "http://localhost:8000/v1/admin/api-keys" \
 - VyOS OS: Prefer running on a management VM/server, not directly on VyOS unless custom build.
 
 ---
-See `user-guide.md` for usage examples and `networking.md` for allocation logic.
+See [`user-guide.md`](docs/user-guide.md) for usage examples and [`networking.md`](docs/networking.md) for allocation logic.

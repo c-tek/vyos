@@ -52,7 +52,7 @@ uvicorn main:app --reload --port $VYOS_API_PORT
 
 ## Basic Usage
 - All endpoints require an API key via the `X-API-Key` header.
-- See `api-reference.md` for full endpoint details.
+- See [`api-reference.md`](docs/api-reference.md) for full endpoint details and [`EXAMPLES.md`](docs/EXAMPLES.md) for practical usage examples.
 
 ## Authentication and API Key Management
 
@@ -64,43 +64,10 @@ Upon the first startup of the API, if no admin API key exists in the database, a
 ### Managing API Keys (Admin Privileges Required)
 To manage API keys (create, retrieve, update, delete), you must use an API key that has `is_admin` privileges set to `true`. These operations are exposed via the `/v1/admin` endpoints.
 
-**Example: Create a new API Key (using an existing admin key)**
-```bash
-curl -X POST "http://localhost:8000/v1/admin/api-keys" \
-     -H "X-API-Key: <your-admin-api-key>" \
-     -H "Content-Type: application/json" \
-     -d '{"description": "API key for a new user", "is_admin": false, "expires_in_days": 365}'
-```
-
-**Example: Get all API Keys**
-```bash
-curl -X GET "http://localhost:8000/v1/admin/api-keys" \
-     -H "X-API-Key: <your-admin-api-key>"
-```
-
-For more details on admin endpoints, refer to the `api-reference.md`.
-
-## Example: Provision a VM
-```http
-POST /v1/vms/provision
-X-API-Key: <your-api-key>
-{
-  "vm_name": "server-01",
-  "mac_address": "00:11:22:33:44:AA" // Required
-}
-```
-
-## Example: Override IP Range Per Request
-You can pass an optional `ip_range` in the request body to allocate from a custom range:
-```json
-{
-  "vm_name": "server-02",
-  "ip_range": { "base": "192.168.66.", "start": 10, "end": 50 }
-}
-```
+For examples on how to create and manage API keys, refer to [`docs/EXAMPLES.md`](docs/EXAMPLES.md). For more details on admin endpoints, refer to the [`api-reference.md`](docs/api-reference.md).
 
 ## VyOS Integration
-For a full tutorial on preparing your VyOS router and integrating with this API, see `vyos-installation.md` in this folder.
+For a full tutorial on preparing your VyOS router and integrating with this API, see [`vyos-installation.md`](docs/vyos-installation.md) in this folder.
 
 ## Notes
 - All dependencies are listed in `requirements.txt`.
@@ -110,4 +77,4 @@ For a full tutorial on preparing your VyOS router and integrating with this API,
 - VyOS OS: Prefer running on a management VM/server, not directly on VyOS unless custom build.
 
 ---
-For advanced usage, see the other documentation files in this folder.
+For advanced usage and comprehensive examples, see the other documentation files in this folder, especially [`api-reference.md`](docs/api-reference.md) and [`EXAMPLES.md`](docs/EXAMPLES.md).

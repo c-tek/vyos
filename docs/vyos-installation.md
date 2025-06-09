@@ -17,12 +17,8 @@
 7.  [Running the API](#7-running-the-api)
     *   [7.1 Development (manual)](#71-development-manual)
     *   [7.2 Production (systemd example)](#72-production-systemd-example)
-8.  [Using the API (Postman & CLI)](#8-using-the-api-postman--cli)
+8.  [Using the API](#8-using-the-api)
     *   [8.1 Importing the OpenAPI Spec into Postman](#81-importing-the-openapi-spec-into-postman)
-    *   [8.2 Example: Provision a VM (Postman)](#82-example-provision-a-vm-postman)
-    *   [8.3 Example: Provision a VM (curl)](#83-example-provision-a-vm-curl)
-    *   [8.4 Example: Provision a VM (Python)](#84-example-provision-a-vm-python)
-    *   [8.5 Example: Get All VM Status (Postman or curl)](#85-example-get-all-vm-status-postman-or-curl)
 9.  [Security & Best Practices](#9-security--best-practices)
 10. [Troubleshooting](#10-troubleshooting)
 11. [Uninstallation/Cleanup](#11-uninstallationcleanup)
@@ -234,8 +230,8 @@ The application uses SQLAlchemy for database interactions. Before running the AP
 ```bash
 venv/bin/python -c 'from models import create_db_tables; create_db_tables()'
 ```
-*   This command executes a small Python script that imports the `create_db_tables` function from `models.py` and calls it. This function is responsible for creating all necessary database tables (e.g., `VMNetworkConfig`, `VMPortRule`, `APIKey`) based on the SQLAlchemy models defined in `models.py`.
-*   By default, the database will be a SQLite file named `vyos.db` in the project root, as configured in `config.py`. For production, consider using a more robust database like PostgreSQL.
+*   This command executes a small Python script that imports the `create_db_tables` function from [`models.py`](models.py) and calls it. This function is responsible for creating all necessary database tables (e.g., `VMNetworkConfig`, `VMPortRule`, `APIKey`) based on the SQLAlchemy models defined in [`models.py`](models.py).
+*   By default, the database will be a SQLite file named `vyos.db` in the project root, as configured in [`config.py`](config.py). For production, consider using a more robust database like PostgreSQL.
 
 ---
 
@@ -295,7 +291,7 @@ export VYOS_PORT_END=33000
 export VYOS_API_APP_PORT=8800
 export VYOS_JWT_SECRET="changeme_jwt_secret"
 ```
-**Note:** If you use a `.env` file, ensure your deployment method (e.g., systemd, Docker) is configured to load it. The provided systemd example in section 7.2 uses `EnvironmentFile`.
+**Note:** If you use a `.env` file, ensure your deployment method (e.g., systemd, Docker) is configured to load it. The provided systemd example in section [7.2 Production (systemd example)](#72-production-systemd-example) uses `EnvironmentFile`.
 
 ---
 
@@ -361,14 +357,14 @@ For production deployments on Linux, it's best practice to run the API as a syst
 
 ---
 
-## 8. Using the API (Postman & CLI)
+## 8. Using the API
 
 This section provides examples of how to interact with the automation API using various tools. All API endpoints are prefixed with `/v1`.
 
 ### 8.1 Importing the OpenAPI Spec into Postman
 The API automatically generates an OpenAPI (Swagger) specification, which can be imported into Postman for easy testing and exploration.
 
-1.  **Start the API app:** Ensure your API application is running (see section 7).
+1.  **Start the API app:** Ensure your API application is running (see section [7. Running the API](#7-running-the-api)).
 2.  **Access OpenAPI documentation:** Open your web browser and navigate to `http://localhost:8800/docs` (replace `8800` with your configured `VYOS_API_APP_PORT`).
 3.  **Download OpenAPI JSON:** Look for a "Download" button or a link to `/openapi.json` on the Swagger UI page. Copy the URL or the raw JSON content.
 4.  **Import into Postman:**
@@ -378,88 +374,7 @@ The API automatically generates an OpenAPI (Swagger) specification, which can be
     *   Follow the prompts to import the collection.
 5.  **Explore and Test:** You can now explore all API endpoints, view their schemas, and send requests interactively within Postman. Remember to set the `X-API-Key` header for authenticated endpoints.
 
-### 8.2 Example: Provision a VM (Postman)
-This example demonstrates how to provision a new VM, which involves assigning an internal IP and configuring NAT rules for SSH, HTTP, and HTTPS.
-
-*   **Method**: `POST`
-*   **URL**: `http://localhost:8800/v1/vms/provision`
-*   **Headers**:
-    *   `X-API-Key`: `your-api-key` (Replace with an actual API key for the automation API)
-    *   `Content-Type`: `application/json`
-*   **Body (raw, JSON)**:
-    ```json
-    {
-      "vm_name": "server-01",
-      "mac_address": "00:11:22:33:44:AA"
-    }
-    ```
-*   **Action**: Click "Send" and view the response.
-*   **Expected Response**:
-    ```json
-    {
-      "status": "success",
-      "internal_ip": "192.168.64.100",
-      "external_ports": {
-        "ssh": 32000,
-        "http": 32001,
-        "https": 32002
-      },
-      "nat_rule_base": 10001
-    }
-    ```
-
-### 8.3 Example: Provision a VM (curl)
-```bash
-curl -X POST "http://localhost:8800/v1/vms/provision" \
-     -H "X-API-Key: your-api-key" \
-     -H "Content-Type: application/json" \
-     -d '{"vm_name": "server-01", "mac_address": "00:11:22:33:44:AA"}'
-```
-
-### 8.4 Example: Provision a VM (Python)
-This Python example uses the `httpx` library, which is asynchronous and aligns with the API's backend.
-
-```python
-import httpx
-import asyncio
-
-async def provision_vm():
-    url = "http://localhost:8800/v1/vms/provision"
-    headers = {"X-API-Key": "your-api-key"}
-    payload = {"vm_name": "server-01", "mac_address": "00:11:22:33:44:AA"}
-    
-    async with httpx.AsyncClient() as client:
-        response = await client.post(url, json=payload, headers=headers)
-        response.raise_for_status() # Raise an exception for 4xx or 5xx responses
-        print(response.json())
-
-if __name__ == "__main__":
-    asyncio.run(provision_vm())
-```
-
-### 8.5 Example: Get All VM Status (Postman or curl)
-*   **Method**: `GET`
-*   **URL**: `http://localhost:8800/v1/status/ports`
-*   **Headers**:
-    *   `X-API-Key`: `your-api-key`
-*   **Curl Example**:
-    ```bash
-    curl -X GET "http://localhost:8800/v1/status/ports" -H "X-API-Key: your-api-key"
-    ```
-*   **Expected Response**:
-    ```json
-    [
-      {
-        "machine_id": "server-01",
-        "internal_ip": "192.168.64.100",
-        "ports": {
-          "ssh": {"status": "enabled", "external_port": 32000, "nat_rule_number": 10001},
-          "http": {"status": "enabled", "external_port": 32001, "nat_rule_number": 10002},
-          "https": {"status": "not_active", "external_port": null, "nat_rule_number": null}
-        }
-      }
-    ]
-    ```
+For detailed examples on how to use the API with Postman, curl, and Python, refer to [`docs/EXAMPLES.md`](docs/EXAMPLES.md).
 
 ---
 
@@ -484,7 +399,7 @@ if __name__ == "__main__":
 *   **Port in use:** If the automation API fails to start due to a port conflict, change the `VYOS_API_APP_PORT` environment variable to an unused port.
 *   **VyOS API SSL/TLS Errors:** If you encounter SSL certificate validation errors, ensure:
     *   Your VyOS router has a valid SSL certificate configured (Let's Encrypt or self-signed).
-    *   If using self-signed, the VyOS CA certificate is correctly added to your API server's trusted CA store (Section 4.2).
+    *   If using self-signed, the VyOS CA certificate is correctly added to your API server's trusted CA store (Section [4.2 Configure SSL/TLS for VyOS API (Recommended)](#42-configure-ssltls-for-vyos-api-recommended)).
 *   **Database Locked:** If using SQLite (`vyos.db`), ensure no other process is accessing the database file. For production, consider a client-server database like PostgreSQL.
 
 ---
@@ -650,6 +565,4 @@ echo "Also, ensure your VyOS router's API is enabled and configured with the cor
 *   [Postman App](https://www.postman.com/downloads/)
 *   [FastAPI Documentation](https://fastapi.tiangolo.com/)
 *   [Project README](../README.md)
-*   [Phase 1 Roadmap](Phase-1-Roadmap.md)
-*   [Phase 2 Roadmap](Phase-2-Roadmap.md)
-*   [Phase 3 Roadmap](Phase-3-Roadmap.md)
+*   [Feature Status and Roadmap](FEATURE_STATUS.md)

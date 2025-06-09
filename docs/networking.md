@@ -22,4 +22,4 @@
 - The system can be extended to support multiple DHCP subnets and custom static pools per tenant/project.
 
 ---
-See `how-to-extend.md` for extension instructions.
+See [`how-to-extend.md`](docs/how-to-extend.md) for extension instructions.

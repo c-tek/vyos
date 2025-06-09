@@ -5,10 +5,6 @@
 - Change the default API key in `crud.py` for production.
 - Store API keys securely (use environment variables or a secrets manager).
 
-## JWT Authentication
-- All endpoints can use JWT for authentication.
-- **API Key**: Set `X-API-Key` header.
-- **JWT**: Set `Authorization: Bearer <token>` header. Obtain token from `/auth/jwt`.
 
 ## Least Privilege
 - The API key should only allow access to the automation API, not the VyOS router directly.
@@ -38,4 +34,4 @@
 - VyOS OS: Prefer running on a management VM/server, not directly on VyOS unless custom build.
 
 ---
-See `user-guide.md` for authentication usage and `api-reference.md` for endpoint details.
+See [`user-guide.md`](docs/user-guide.md) for authentication usage and [`api-reference.md`](docs/api-reference.md) for endpoint details.
