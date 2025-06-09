@@ -240,12 +240,20 @@ curl -X POST "http://localhost:8800/vms/provision" \
 
 ### 8.4 Example: Provision a VM (Python)
 ```python
-import requests
-url = "http://localhost:8800/vms/provision"
-headers = {"X-API-Key": "your-api-key"}
-payload = {"vm_name": "server-01", "mac_address": "00:11:22:33:44:AA"}
-response = requests.post(url, json=payload, headers=headers)
-print(response.json())
+import httpx
+import asyncio
+
+async def provision_vm():
+    url = "http://localhost:8800/vms/provision"
+    headers = {"X-API-Key": "your-api-key"}
+    payload = {"vm_name": "server-01", "mac_address": "00:11:22:33:44:AA"}
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, json=payload, headers=headers)
+        response.raise_for_status() # Raise an exception for 4xx or 5xx responses
+        print(response.json())
+
+if __name__ == "__main__":
+    asyncio.run(provision_vm())
 ```
 
 ### 8.5 Example: Get All VM Status (Postman or curl)

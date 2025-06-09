@@ -17,16 +17,35 @@
 
 ## Example: Get JWT Token
 ```python
-import requests
-resp = requests.post('http://localhost:8800/auth/jwt', data={'username': 'user', 'password': 'pass'})
-token = resp.json()['access_token']
+import httpx
+import asyncio
+
+async def get_jwt_token():
+    async with httpx.AsyncClient() as client:
+        resp = await client.post('http://localhost:8800/auth/jwt', data={'username': 'user', 'password': 'pass'})
+        resp.raise_for_status()
+        token = resp.json()['access_token']
+        print(f"JWT Token: {token}")
+        return token
+
+if __name__ == "__main__":
+    asyncio.run(get_jwt_token())
 ```
 
 ## Example: Use JWT Token
 ```python
-headers = {"Authorization": f"Bearer {token}"}
-response = requests.get("http://localhost:8800/ports/status", headers=headers)
-print(response.json())
+async def use_jwt_token(token: str):
+    headers = {"Authorization": f"Bearer {token}"}
+    async with httpx.AsyncClient() as client:
+        response = await client.get("http://localhost:8800/ports/status", headers=headers)
+        response.raise_for_status()
+        print(response.json())
+
+if __name__ == "__main__":
+    # This assumes you have a token from a previous call or hardcoded for testing
+    # token = "your_jwt_token_here"
+    # asyncio.run(use_jwt_token(token))
+    pass # Placeholder, as this example depends on a token
 ```
 
 ---
@@ -42,12 +61,20 @@ print(response.json())
 
 ## Python
 ```python
-import requests
-url = "http://localhost:8800/vms/provision"
-headers = {"X-API-Key": "your-api-key"}
-payload = {"vm_name": "server-01", "mac_address": "00:11:22:33:44:AA"}
-response = requests.post(url, json=payload, headers=headers)
-print(response.json())
+import httpx
+import asyncio
+
+async def provision_vm():
+    url = "http://localhost:8800/vms/provision"
+    headers = {"X-API-Key": "your-api-key"}
+    payload = {"vm_name": "server-01", "mac_address": "00:11:22:33:44:AA"}
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        print(response.json())
+
+if __name__ == "__main__":
+    asyncio.run(provision_vm())
 ```
 
 ## Curl
@@ -78,13 +105,24 @@ curl -X POST "http://localhost:8800/vms/provision" \
 
 ## Python
 ```python
-payload = {
-    "vm_name": "custom-vm",
-    "ip_range": {"base": "192.168.66.", "start": 10, "end": 50},
-    "port_range": {"start": 35000, "end": 35010}
-}
-response = requests.post(url, json=payload, headers=headers)
-print(response.json())
+import httpx
+import asyncio
+
+async def provision_custom_vm():
+    url = "http://localhost:8800/vms/provision"
+    headers = {"X-API-Key": "your-api-key"}
+    payload = {
+        "vm_name": "custom-vm",
+        "ip_range": {"base": "192.168.66.", "start": 10, "end": 50},
+        "port_range": {"start": 35000, "end": 35010}
+    }
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        print(response.json())
+
+if __name__ == "__main__":
+    asyncio.run(provision_custom_vm())
 ```
 
 ## Curl
@@ -120,10 +158,20 @@ curl -X POST "http://localhost:8800/vms/provision" \
 
 ## Python
 ```python
-url = "http://localhost:8800/vms/server-01/ports/template"
-payload = {"action": "pause", "ports": ["ssh", "http"]}
-response = requests.post(url, json=payload, headers=headers)
-print(response.json())
+import httpx
+import asyncio
+
+async def pause_ports():
+    url = "http://localhost:8800/vms/server-01/ports/template"
+    headers = {"X-API-Key": "your-api-key"}
+    payload = {"action": "pause", "ports": ["ssh", "http"]}
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        print(response.json())
+
+if __name__ == "__main__":
+    asyncio.run(pause_ports())
 ```
 
 ## Curl
@@ -154,9 +202,19 @@ curl -X POST "http://localhost:8800/vms/server-01/ports/template" \
 
 ## Python
 ```python
-url = "http://localhost:8800/ports/status"
-response = requests.get(url, headers=headers)
-print(response.json())
+import httpx
+import asyncio
+
+async def get_all_vm_status():
+    url = "http://localhost:8800/ports/status"
+    headers = {"X-API-Key": "your-api-key"}
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=headers)
+        response.raise_for_status()
+        print(response.json())
+
+if __name__ == "__main__":
+    asyncio.run(get_all_vm_status())
 ```
 
 ## Curl
@@ -177,19 +235,38 @@ curl -X GET "http://localhost:8800/ports/status" \
 
 ## Python
 ```python
-# Provision
-data = {"vm_name": "demo-vm"}
-provision = requests.post("http://localhost:8800/vms/provision", json=data, headers=headers)
-print(provision.json())
-# Pause SSH
-pause = requests.post("http://localhost:8800/vms/demo-vm/ports/template", json={"action": "pause", "ports": ["ssh"]}, headers=headers)
-print(pause.json())
-# Get status
-status = requests.get("http://localhost:8800/ports/status", headers=headers)
-print(status.json())
-# Decommission (MCP)
-mcp = requests.post("http://localhost:8800/mcp/decommission", json={"context": {}, "input": {}}, headers=headers)
-print(mcp.json())
+import httpx
+import asyncio
+
+async def full_workflow():
+    headers = {"X-API-Key": "your-api-key"} # Define headers here
+
+    # Provision
+    provision_payload = {"vm_name": "demo-vm"}
+    async with httpx.AsyncClient() as client:
+        provision_response = await client.post("http://localhost:8800/vms/provision", json=provision_payload, headers=headers)
+        provision_response.raise_for_status()
+        print("Provision Response:", provision_response.json())
+
+        # Pause SSH
+        pause_payload = {"action": "pause", "ports": ["ssh"]}
+        pause_response = await client.post("http://localhost:8800/vms/demo-vm/ports/template", json=pause_payload, headers=headers)
+        pause_response.raise_for_status()
+        print("Pause SSH Response:", pause_response.json())
+
+        # Get status
+        status_response = await client.get("http://localhost:8800/ports/status", headers=headers)
+        status_response.raise_for_status()
+        print("Status Response:", status_response.json())
+
+        # Decommission (MCP)
+        mcp_payload = {"context": {}, "input": {}}
+        mcp_response = await client.post("http://localhost:8800/mcp/decommission", json=mcp_payload, headers=headers)
+        mcp_response.raise_for_status()
+        print("Decommission Response:", mcp_response.json())
+
+if __name__ == "__main__":
+    asyncio.run(full_workflow())
 ```
 
 ## Curl
@@ -238,10 +315,20 @@ curl -X POST "http://localhost:8800/mcp/decommission" \
 
 ## Python
 ```python
-url = "http://localhost:8800/vms/server-01/ports/template"
-payload = {"action": "resume", "ports": ["http", "https"]}
-response = requests.post(url, json=payload, headers=headers)
-print(response.json())
+import httpx
+import asyncio
+
+async def custom_port_action():
+    url = "http://localhost:8800/vms/server-01/ports/template"
+    headers = {"X-API-Key": "your-api-key"}
+    payload = {"action": "resume", "ports": ["http", "https"]}
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        print(response.json())
+
+if __name__ == "__main__":
+    asyncio.run(custom_port_action())
 ```
 
 ## Curl
