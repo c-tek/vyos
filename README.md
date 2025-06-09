@@ -9,6 +9,9 @@ This project provides a FastAPI-based service for managing static DHCP assignmen
 - Status endpoints for dashboard integration
 - Ready for MCP integration
 - API key authentication for all endpoints
+- **Full Asynchronous Support:** All database and VyOS API calls are now asynchronous, improving concurrency and scalability.
+- **Enhanced Error Handling:** Provides clearer, more consistent, and specific error responses with custom exception classes and standardized schemas.
+- **Secure VyOS API Communication:** Enforces SSL/TLS certificate verification for communication with the VyOS router.
 
 ## Documentation
 - [Installation Guide](docs/vyos-installation.md)
@@ -140,7 +143,9 @@ X-API-Key: <your-api-key>
 ## Security
 - All endpoints require an API key via the `X-API-Key` header.
 - Change the default API key in `crud.py` for production.
-- **Authentication**: Now supports both API Key (X-API-Key) and local JWT (Authorization: Bearer ...). See security.md and EXAMPLES.md for details.
+- **Authentication**: Now supports both API Key (X-API-Key) and local JWT (Authorization: Bearer ...). See [Security Guide](docs/security.md) and [Example Usage](docs/EXAMPLES.md) for details.
+- **Enhanced Error Handling**: Detailed error responses are provided for security-related issues (e.g., invalid/expired API keys, forbidden access).
+- **VyOS API SSL/TLS Verification**: Communication with the VyOS router now enforces SSL/TLS certificate verification. Refer to the [Installation Guide](docs/vyos-installation.md) for details on configuring VyOS with SSL and managing trusted CAs.
 
 ## API Key Management
 
