@@ -11,10 +11,15 @@ This document outlines features that are declared in the documentation or planne
 
 ### 2. Full Asynchronous Support
 
-*   **Description:** A `TODO` comment in `main.py` explicitly states the need to refactor database and VyOS API calls to use async-compatible libraries and update endpoints to `async def`. Currently, synchronous operations are used for database interactions (SQLAlchemy) and external API calls (`requests` to VyOS).
-*   **Impact:** Synchronous operations block the FastAPI event loop, leading to performance bottlenecks and reduced scalability, especially under high concurrent load.
+*   **Description:** This feature has been fully implemented. Database and VyOS API calls now use async-compatible libraries (`sqlalchemy[asyncio]` and `httpx`), and all relevant endpoints have been refactored to `async def`.
+*   **Status:** Implemented.
 
-### 3. Advanced Port Management
+### 3. Enhanced Error Handling
+
+*   **Description:** Custom exception classes have been defined, standardized error response schemas are in place, `vyos_api_call` now raises specific errors, and all API endpoints have centralized `try-except` blocks to catch and return consistent error responses.
+*   **Status:** Implemented.
+
+### 4. Advanced Port Management
 
 *   **Description:** The current port management allows basic enable/disable/delete actions. However, more granular control over port forwarding rules, such as specifying source IP addresses/networks, protocols (TCP/UDP), and custom descriptions per rule, is not available.
 *   **Impact:** Limits the flexibility and control for network administrators who might need more specific NAT rule configurations.
@@ -49,19 +54,16 @@ This phase focuses on addressing fundamental performance, security, and error ha
 
 1.  **Full Asynchronous Implementation:**
     *   **Objective:** Eliminate blocking I/O operations to improve API concurrency and scalability.
-    *   **Action Points:**
-        *   **Database:** Configure `AsyncEngine` and `async_sessionmaker` in `config.py`. Convert all `crud.py` functions to `async def`, using `await session.execute()` and `await session.commit()`. Update `main.py`'s `on_startup` for async database access.
-        *   **VyOS API Calls:** Install `httpx`. Modify `vyos.py` to use `httpx.AsyncClient().post` and make `vyos_api_call` `async def`.
-        *   **Routers:** Update all endpoint functions in `routers.py` and `admin.py` to `async def` and `await` calls to `crud` and `vyos` functions.
-    *   **Dependencies:** `sqlalchemy[asyncio]`, `httpx`.
+    *   **Status:** Completed.
 
 2.  **Enhanced Error Handling:**
     *   **Objective:** Provide clearer, more consistent, and specific error responses to API consumers and improve internal debugging.
-    *   **Action Points:** Define custom exception classes (e.g., `VyOSAPIError`, `ResourceAllocationError`) in a new `exceptions.py` file. Create Pydantic models for standardized error responses. Enhance `vyos_api_call` to parse specific error messages from VyOS API responses and raise `VyOSAPIError`. Implement `try-except` blocks in routers to catch custom exceptions and return `HTTPException` with standardized error schemas.
+    *   **Status:** Completed.
 
 3.  **Secure VyOS API Communication:**
     *   **Objective:** Ensure secure communication with the VyOS router by validating SSL certificates.
-    *   **Action Points:** In `vyos.py`, change `verify=False` to `verify=True` in the `httpx` call. Update `docs/vyos-installation.md` and `docs/security.md` with instructions on configuring VyOS with valid SSL certificates and managing trusted CAs.
+    *   **Action Points:** Update `docs/vyos-installation.md` and `docs/security.md` with instructions on configuring VyOS with valid SSL certificates and managing trusted CAs.
+    *   **Status:** Code implemented, documentation pending.
 
 ### Phase 2: Advanced Authentication & Management (Next Priority)
 

@@ -150,19 +150,79 @@ These endpoints require an API Key with admin privileges (`is_admin=true`).
 `DELETE /v1/admin/api-keys/{api_key_value}`
 - Response: `204 No Content` on success.
 
-## Example Error Responses
-- 401 Unauthorized:
+## Error Responses
+The API now provides more structured and consistent error responses. All error responses will follow the `ErrorResponse` schema:
+
 ```json
-{"detail": "Invalid or missing API Key"}
+{
+  "detail": "A human-readable explanation of the error.",
+  "code": "AN_OPTIONAL_MACHINE_READABLE_ERROR_CODE"
+}
 ```
-- 404 Not Found:
-```json
-{"detail": "VM not found"}
-```
-- 500 Internal Server Error:
-```json
-{"detail": "<error message>"}
-```
+
+Here are some common error responses you might encounter:
+
+-   **401 Unauthorized:**
+    ```json
+    {"detail": "Invalid or missing API Key"}
+    ```
+    or
+    ```json
+    {"detail": "Expired API Key"}
+    ```
+    or
+    ```json
+    {"detail": "Missing JWT token"}
+    ```
+    or
+    ```json
+    {"detail": "Invalid JWT token"}
+    ```
+
+-   **403 Forbidden:**
+    ```json
+    {"detail": "Admin privileges required"}
+    ```
+
+-   **404 Not Found:**
+    ```json
+    {"detail": "VM with machine_id 'server-01' not found"}
+    ```
+    or
+    ```json
+    {"detail": "Port rule for 'ssh' not found on VM 'server-01'"}
+    ```
+    or
+    ```json
+    {"detail": "API Key not found"}
+    ```
+
+-   **429 Too Many Requests:**
+    ```json
+    {"detail": "Rate limit exceeded: 30 per minute", "code": "RATE_LIMIT_EXCEEDED"}
+    ```
+
+-   **500 Internal Server Error:**
+    ```json
+    {"detail": "An unexpected error occurred: <error message>"}
+    ```
+    or (from VyOS API)
+    ```json
+    {"detail": "VyOS API returned an error: 500 - <VyOS error message>"}
+    ```
+
+-   **507 Insufficient Storage:** (Resource Allocation Errors)
+    ```json
+    {"detail": "No available IPs in 192.168.64.100-192.168.64.199 range"}
+    ```
+    or
+    ```json
+    {"detail": "No available external ports in 32000-33000 range"}
+    ```
+    or
+    ```json
+    {"detail": "No available NAT rule numbers"}
+    ```
 
 ## Examples
 

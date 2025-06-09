@@ -61,7 +61,58 @@ exit
 - Note the VyOS router's IP address (e.g., `192.168.64.1`).
 - For more, see the [VyOS API Docs](https://docs.vyos.io/en/latest/configuration/services/https.html#api).
 
-### 4.2 (Optional) Restrict API Access
+### 4.2 Configure SSL/TLS for VyOS API (Recommended)
+For secure communication, it is highly recommended to configure your VyOS router with valid SSL/TLS certificates. The automation API now enforces SSL/TLS verification (`verify=True` in `httpx` calls).
+
+#### Using Let's Encrypt (Recommended for Publicly Accessible VyOS)
+If your VyOS router has a public IP and domain name, you can use Let's Encrypt for free, trusted certificates.
+```vyos
+configure
+set pki certificate <your-cert-name> acme-server 'https://acme-v02.api.letsencrypt.org/directory'
+set pki certificate <your-cert-name> common-name <your-domain.com>
+set pki certificate <your-cert-name> subject-alt-name dns <your-domain.com>
+set pki certificate <your-cert-name> key-size 2048
+set pki certificate <your-cert-name> generate
+set service https certificate <your-cert-name>
+commit
+save
+```
+Replace `<your-cert-name>` and `<your-domain.com>` with your actual certificate name and domain.
+
+#### Using Self-Signed Certificates (for Internal/Lab Environments)
+For internal networks or lab environments, you can generate a self-signed certificate.
+```vyos
+configure
+set pki certificate <your-cert-name> common-name <vyos-ip-or-hostname>
+set pki certificate <your-cert-name> key-size 2048
+set pki certificate <your-cert-name> self-signed
+set pki certificate <your-cert-name> generate
+set service https certificate <your-cert-name>
+commit
+save
+```
+Replace `<your-cert-name>` and `<vyos-ip-or-hostname>` with appropriate values.
+
+#### Trusting Self-Signed Certificates on the API Server
+If you use a self-signed certificate on VyOS, the API server needs to trust its Certificate Authority (CA).
+1.  **Export the VyOS CA Certificate:**
+    On your VyOS router, you can typically find the CA certificate in `/etc/ssl/certs/ca-certificates.crt` or similar. You might need to extract your specific self-signed CA.
+    Alternatively, you can view the certificate details:
+    ```vyos
+    show pki certificate <your-cert-name> certificate
+    ```
+    Copy the content between `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----`.
+
+2.  **Add to API Server's Trusted CAs:**
+    On your Linux API server, save the copied CA certificate content to a file (e.g., `/usr/local/share/ca-certificates/vyos-ca.crt`).
+    Then, update the system's trusted CA store:
+    ```bash
+    sudo cp vyos-ca.crt /usr/local/share/ca-certificates/
+    sudo update-ca-certificates
+    ```
+    This will add your VyOS CA to the system-wide trust store, allowing `httpx` to verify the VyOS API's SSL certificate.
+
+### 4.3 (Optional) Restrict API Access
 ```vyos
 set service https api listen-address 192.168.64.10
 commit

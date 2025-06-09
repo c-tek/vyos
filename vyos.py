@@ -1,5 +1,6 @@
 import httpx
 from config import get_vyos_config
+from exceptions import VyOSAPIError # Import the custom exception
 
 async def vyos_api_call(commands, operation="set"):
     vyos_cfg = get_vyos_config()
@@ -17,11 +18,19 @@ async def vyos_api_call(commands, operation="set"):
             response.raise_for_status()
             return response.json()
     except httpx.RequestError as e:
-        return {"status": "error", "message": f"An error occurred while requesting VyOS API: {e}"}
+        raise VyOSAPIError(detail=f"An error occurred while requesting VyOS API: {e}")
     except httpx.HTTPStatusError as e:
-        return {"status": "error", "message": f"VyOS API returned an error: {e.response.status_code} - {e.response.text}"}
+        # Attempt to parse VyOS specific error message if available
+        error_detail = e.response.text
+        try:
+            error_json = e.response.json()
+            if "error" in error_json and "message" in error_json["error"]:
+                error_detail = error_json["error"]["message"]
+        except ValueError:
+            pass # Not a JSON response
+        raise VyOSAPIError(detail=f"VyOS API returned an error: {e.response.status_code} - {error_detail}", status_code=e.response.status_code)
     except Exception as e:
-        return {"status": "error", "message": f"An unexpected error occurred: {e}"}
+        raise VyOSAPIError(detail=f"An unexpected error occurred: {e}")
 
 # Example: generate VyOS commands for port forwarding
 

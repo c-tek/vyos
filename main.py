@@ -10,9 +10,10 @@ from slowapi.middleware import SlowAPIMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt as pyjwt
-from schemas import LoginRequest
+from schemas import LoginRequest, ErrorResponse # Import ErrorResponse
 from models import create_db_tables, APIKey
 from config import engine, SessionLocal
+from exceptions import APIKeyError # Import custom exception
 
 app = FastAPI(title="VyOS VM Network Automation API")
 
@@ -40,7 +41,13 @@ logging.basicConfig(
 # Rate limiting setup
 limiter = Limiter(key_func=get_remote_address, default_limits=["30/minute"])
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+@app.exception_handler(RateLimitExceeded)
+async def _rate_limit_exceeded_handler_custom(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        content=ErrorResponse(detail=f"Rate limit exceeded: {exc.detail}", code="RATE_LIMIT_EXCEEDED").model_dump()
+    )
 
 # JWT Auth setup
 JWT_SECRET = os.getenv("VYOS_JWT_SECRET", "changeme_jwt_secret")
@@ -49,12 +56,14 @@ http_bearer = HTTPBearer(auto_error=False)
 
 def get_jwt_user(credentials: HTTPAuthorizationCredentials = Depends(http_bearer)):
     if credentials is None:
-        raise HTTPException(status_code=401, detail="Missing JWT token")
+        raise APIKeyError(detail="Missing JWT token", status_code=status.HTTP_401_UNAUTHORIZED)
     try:
         payload = pyjwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         return payload.get("sub", "unknown")
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid JWT token")
+    except pyjwt.PyJWTError:
+        raise APIKeyError(detail="Invalid JWT token", status_code=status.HTTP_401_UNAUTHORIZED)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred during JWT validation: {e}")
 
 @app.middleware("http")
 async def audit_log_middleware(request: Request, call_next):
@@ -75,7 +84,10 @@ app.include_router(router, prefix="/v1")
 app.include_router(admin_router, prefix="/v1/admin", tags=["Admin"]) # Include the admin router
 app.add_middleware(SlowAPIMiddleware)
 
-@app.get("/")
+@app.get("/", responses={
+    status.HTTP_200_OK: {"description": "API is running"},
+    status.HTTP_429_TOO_MANY_REQUESTS: {"model": ErrorResponse, "description": "Rate limit exceeded"}
+})
 def root():
     return {"message": "VyOS VM Network Automation API is running."}
 

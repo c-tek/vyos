@@ -2,6 +2,13 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Literal, Dict, Any
 from datetime import datetime
 
+class ErrorResponse(BaseModel):
+    detail: str = Field(..., description="A human-readable explanation of the error.")
+    code: Optional[str] = Field(None, description="An optional, machine-readable error code.")
+    
+class ValidationErrorResponse(ErrorResponse):
+    errors: List[Dict[str, Any]] = Field(..., description="Details about validation errors.")
+
 class PortActionRequest(BaseModel):
     action: Literal["create", "delete", "pause", "enable", "disable"]
     ports: Optional[List[str]] = None  # ["ssh", "http", "https"]

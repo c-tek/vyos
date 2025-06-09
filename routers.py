@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from schemas import VMProvisionRequest, VMProvisionResponse, PortActionRequest
+from schemas import VMProvisionRequest, VMProvisionResponse, PortActionRequest, ErrorResponse
 import crud
 from models import PortType, PortStatus
 from vyos import vyos_api_call, generate_port_forward_commands
@@ -9,6 +9,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy import text
 import httpx # Import httpx for health check
 import os
+from exceptions import VyOSAPIError, ResourceAllocationError, VMNotFoundError, PortRuleNotFoundError # Import custom exceptions
 
 router = APIRouter()
 
@@ -20,7 +21,11 @@ router.include_router(vms, prefix="/vms", tags=["VMs"])
 router.include_router(status, prefix="/status", tags=["Status"])
 router.include_router(mcp, prefix="/mcp", tags=["MCP"])
 
-@router.post("/provision", response_model=VMProvisionResponse, dependencies=[Depends(get_api_key)])
+@router.post("/provision", response_model=VMProvisionResponse, dependencies=[Depends(get_api_key)],
+             responses={
+                 status.HTTP_507_INSUFFICIENT_STORAGE: {"model": ErrorResponse, "description": "Resource Allocation Error"},
+                 status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse, "description": "VyOS API Error or Internal Server Error"}
+             })
 async def provision_vm(req: VMProvisionRequest, db: AsyncSession = Depends(get_db)):
     try:
         machine_id = req.vm_name
@@ -49,66 +54,95 @@ async def provision_vm(req: VMProvisionRequest, db: AsyncSession = Depends(get_d
             external_ports=ext_ports,
             nat_rule_base=nat_rule_base
         )
+    except (VyOSAPIError, ResourceAllocationError) as e:
+        raise e
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred: {e}")
 
-@router.post("/vms/{machine_id}/ports/template", dependencies=[Depends(get_api_key)])
+@router.post("/vms/{machine_id}/ports/template", dependencies=[Depends(get_api_key)],
+             responses={
+                 status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "VM Not Found"},
+                 status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse, "description": "VyOS API Error or Internal Server Error"}
+             })
 async def template_ports(machine_id: str, req: PortActionRequest, db: AsyncSession = Depends(get_db)):
     vm = await crud.get_vm_by_machine_id(db, machine_id)
     if not vm:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="VM not found")
+        raise VMNotFoundError(detail=f"VM with machine_id '{machine_id}' not found")
     ports = req.ports or ["ssh", "http", "https"]
-    for port in ports:
-        port_type = PortType[port]
-        rule = next((r for r in vm.ports if r.port_type == port_type), None)
-        if not rule:
-            continue
-        if req.action == "pause":
-            await crud.set_port_status(db, vm, port_type, PortStatus.disabled)
-            commands = generate_port_forward_commands(machine_id, vm.internal_ip, rule.external_port, rule.nat_rule_number, port, "disable")
-            await vyos_api_call(commands)
-        elif req.action == "delete":
-            await crud.set_port_status(db, vm, port_type, PortStatus.not_active)
-            commands = generate_port_forward_commands(machine_id, vm.internal_ip, rule.external_port, rule.nat_rule_number, port, "delete")
-            await vyos_api_call(commands)
-        elif req.action == "create":
-            await crud.set_port_status(db, vm, port_type, PortStatus.enabled)
-            commands = generate_port_forward_commands(machine_id, vm.internal_ip, rule.external_port, rule.nat_rule_number, port, "set")
-            await vyos_api_call(commands)
-    return {"status": "success", "machine_id": machine_id, "action": req.action}
+    try:
+        for port in ports:
+            port_type = PortType[port]
+            rule = next((r for r in vm.ports if r.port_type == port_type), None)
+            if not rule:
+                continue
+            if req.action == "pause":
+                await crud.set_port_status(db, vm, port_type, PortStatus.disabled)
+                commands = generate_port_forward_commands(machine_id, vm.internal_ip, rule.external_port, rule.nat_rule_number, port, "disable")
+                await vyos_api_call(commands)
+            elif req.action == "delete":
+                await crud.set_port_status(db, vm, port_type, PortStatus.not_active)
+                commands = generate_port_forward_commands(machine_id, vm.internal_ip, rule.external_port, rule.nat_rule_number, port, "delete")
+                await vyos_api_call(commands)
+            elif req.action == "create":
+                await crud.set_port_status(db, vm, port_type, PortStatus.enabled)
+                commands = generate_port_forward_commands(machine_id, vm.internal_ip, rule.external_port, rule.nat_rule_number, port, "set")
+                await vyos_api_call(commands)
+        return {"status": "success", "machine_id": machine_id, "action": req.action}
+    except VyOSAPIError as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred: {e}")
 
-@router.post("/vms/{machine_id}/ports/{port_name}", dependencies=[Depends(get_api_key)])
+@router.post("/vms/{machine_id}/ports/{port_name}", dependencies=[Depends(get_api_key)],
+             responses={
+                 status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "VM or Port Rule Not Found"},
+                 status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse, "description": "VyOS API Error or Internal Server Error"}
+             })
 async def granular_port(machine_id: str, port_name: str, req: PortActionRequest, db: AsyncSession = Depends(get_db)):
     vm = await crud.get_vm_by_machine_id(db, machine_id)
     if not vm:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="VM not found")
+        raise VMNotFoundError(detail=f"VM with machine_id '{machine_id}' not found")
     port_type = PortType[port_name]
     rule = next((r for r in vm.ports if r.port_type == port_type), None)
     if not rule:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Port rule not found")
-    if req.action == "enable":
-        await crud.set_port_status(db, vm, port_type, PortStatus.enabled)
-        commands = generate_port_forward_commands(machine_id, vm.internal_ip, rule.external_port, rule.nat_rule_number, port_name, "enable")
-        await vyos_api_call(commands)
-    elif req.action == "disable":
-        await crud.set_port_status(db, vm, port_type, PortStatus.disabled)
-        commands = generate_port_forward_commands(machine_id, vm.internal_ip, rule.external_port, rule.nat_rule_number, port_name, "disable")
-        await vyos_api_call(commands)
-    return {"status": "success", "machine_id": machine_id, "port": port_name, "action": req.action}
+        raise PortRuleNotFoundError(detail=f"Port rule for '{port_name}' not found on VM '{machine_id}'")
+    try:
+        if req.action == "enable":
+            await crud.set_port_status(db, vm, port_type, PortStatus.enabled)
+            commands = generate_port_forward_commands(machine_id, vm.internal_ip, rule.external_port, rule.nat_rule_number, port_name, "enable")
+            await vyos_api_call(commands)
+        elif req.action == "disable":
+            await crud.set_port_status(db, vm, port_type, PortStatus.disabled)
+            commands = generate_port_forward_commands(machine_id, vm.internal_ip, rule.external_port, rule.nat_rule_number, port_name, "disable")
+            await vyos_api_call(commands)
+        return {"status": "success", "machine_id": machine_id, "port": port_name, "action": req.action}
+    except VyOSAPIError as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred: {e}")
 
-@router.delete("/vms/{machine_id}/decommission", dependencies=[Depends(get_api_key)])
+@router.delete("/vms/{machine_id}/decommission", dependencies=[Depends(get_api_key)],
+             responses={
+                 status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "VM Not Found"},
+                 status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse, "description": "VyOS API Error or Internal Server Error"}
+             })
 async def decommission_vm(machine_id: str, db: AsyncSession = Depends(get_db)):
     vm = await crud.get_vm_by_machine_id(db, machine_id)
     if not vm:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="VM not found")
-    # Remove NAT rules from VyOS and DB
-    for rule in list(vm.ports):
-        commands = generate_port_forward_commands(machine_id, vm.internal_ip, rule.external_port, rule.nat_rule_number, rule.port_type.value, "delete")
-        await vyos_api_call(commands)
-        await db.delete(rule)
-    await db.delete(vm)
-    await db.commit()
-    return {"status": "success", "message": f"VM {machine_id} and all NAT rules removed"}
+        raise VMNotFoundError(detail=f"VM with machine_id '{machine_id}' not found")
+    try:
+        # Remove NAT rules from VyOS and DB
+        for rule in list(vm.ports):
+            commands = generate_port_forward_commands(machine_id, vm.internal_ip, rule.external_port, rule.nat_rule_number, rule.port_type.value, "delete")
+            await vyos_api_call(commands)
+            await db.delete(rule)
+        await db.delete(vm)
+        await db.commit()
+        return {"status": "success", "message": f"VM {machine_id} and all NAT rules removed"}
+    except VyOSAPIError as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred: {e}")
 
 @router.get("/health")
 async def health_check():

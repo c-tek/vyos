@@ -19,8 +19,8 @@
 - Only allow valid port types and ranges.
 
 ## Error Handling
-- All database and VyOS operations are wrapped in error handling.
-- Errors are returned as HTTP 4xx/5xx responses with details.
+- All database and VyOS operations are wrapped in comprehensive error handling, utilizing custom exception classes for specific error types.
+- Errors are returned as structured HTTP 4xx/5xx responses with detailed, consistent formats, improving API consumer experience and debugging.
 
 ## Logging
 - Log all API requests, errors, and critical actions for audit and troubleshooting.
@@ -28,6 +28,7 @@
 ## Network Security
 - Run the API behind a firewall or reverse proxy.
 - Use HTTPS in production.
+- **VyOS API SSL/TLS Verification:** The API now enforces SSL/TLS certificate verification when communicating with the VyOS router (`verify=True` in `httpx` calls). Ensure your VyOS router is configured with valid SSL certificates. If using self-signed certificates, you must configure your system to trust the Certificate Authority (CA) that issued the VyOS certificate. Refer to `docs/vyos-installation.md` for instructions on configuring VyOS with SSL and managing trusted CAs.
 
 ## Installation and Dependencies
 - All dependencies are listed in `requirements.txt`.

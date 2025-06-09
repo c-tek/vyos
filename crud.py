@@ -1,12 +1,13 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from models import VMNetworkConfig, VMPortRule, PortType, PortStatus
+from models import VMNetworkConfig, VMPortRule, PortType, PortStatus, APIKey
 from datetime import datetime
 from typing import List, Optional, Tuple, Dict, Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import APIKeyHeader
 import os
 from config import SessionLocal
+from exceptions import ResourceAllocationError, APIKeyError # Import custom exceptions
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
@@ -19,30 +20,18 @@ from models import APIKey # Import the new APIKey model
 
 async def get_api_key(api_key: str = Depends(api_key_header), db: AsyncSession = Depends(get_db)):
     if not api_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing API Key",
-        )
+        raise APIKeyError(detail="Invalid or missing API Key", status_code=status.HTTP_401_UNAUTHORIZED)
     result = await db.execute(select(APIKey).filter(APIKey.api_key == api_key))
     db_api_key = result.scalars().first()
     if not db_api_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API Key",
-        )
+        raise APIKeyError(detail="Invalid API Key", status_code=status.HTTP_401_UNAUTHORIZED)
     if db_api_key.expires_at and db_api_key.expires_at < datetime.utcnow():
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Expired API Key",
-        )
+        raise APIKeyError(detail="Expired API Key", status_code=status.HTTP_401_UNAUTHORIZED)
     return db_api_key
 
 async def get_admin_api_key(api_key: APIKey = Depends(get_api_key)):
     if not api_key.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin privileges required",
-        )
+        raise APIKeyError(detail="Admin privileges required", status_code=status.HTTP_403_FORBIDDEN)
     return api_key
 
 async def get_vm_by_machine_id(db: AsyncSession, machine_id: str) -> Optional[VMNetworkConfig]:
@@ -145,7 +134,7 @@ async def find_next_available_ip(db: AsyncSession, ip_range: Dict[str, Any] = No
         ip = f"{base}{i}"
         if ip not in used_ips:
             return ip
-    raise Exception(f"No available IPs in {base}{start}-{base}{end} range")
+    raise ResourceAllocationError(detail=f"No available IPs in {base}{start}-{base}{end} range")
 
 async def find_next_available_port(db: AsyncSession, port_range: Dict[str, Any] = None) -> int:
     """
@@ -162,7 +151,7 @@ async def find_next_available_port(db: AsyncSession, port_range: Dict[str, Any] 
     for port in range(port_start, port_end + 1):
         if port not in used_ports:
             return port
-    raise Exception(f"No available external ports in {port_start}-{port_end} range")
+    raise ResourceAllocationError(detail=f"No available external ports in {port_start}-{port_end} range")
 
 async def find_next_nat_rule_number(db: AsyncSession) -> int:
     result = await db.execute(select(VMPortRule.nat_rule_number))
@@ -171,7 +160,7 @@ async def find_next_nat_rule_number(db: AsyncSession) -> int:
     for rule in range(base, base + 10000):
         if rule not in used_rules:
             return rule
-    raise Exception("No available NAT rule numbers")
+    raise ResourceAllocationError(detail="No available NAT rule numbers")
 
 async def create_api_key(db: AsyncSession, api_key_value: str, description: Optional[str] = None, is_admin: bool = False, expires_at: Optional[datetime] = None) -> APIKey:
     api_key = APIKey(
