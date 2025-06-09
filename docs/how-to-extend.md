@@ -20,11 +20,12 @@
   ```
 - The backend will then allocate external ports for this VM from the specified range only.
 
-## Multi-Subnet Support (Phase 3 Feature)
-- This feature is planned for Phase 3. To support multiple DHCP subnets, the backend will be extended to:
-  - Accept a `subnet` or `dhcp_pool` parameter per request.
-  - Dynamically create DHCP pools in VyOS if needed.
-  - Track subnet assignments in the database.
+## Multi-Subnet Support (Enhanced with IP Pool Management)
+- With the new IP Pool Management API, you can define and manage multiple IP ranges (subnets) directly in the database.
+- To support multi-subnet scenarios, you can:
+  - Define separate `IPPool` entries for each subnet.
+  - Activate/deactivate pools as needed via the admin API.
+  - If you specify a custom `ip_range` in a provision request that does not match any configured DHCP subnet on VyOS, ensure your VyOS DHCP server is configured to serve that subnet.
 
 ## Adding New Port Types (Future Enhancement)
 - To add new port types, you would typically:
@@ -43,6 +44,7 @@ For a full installation and integration guide, see [`vyos-installation.md`](docs
 
 ## Authentication
 - **API Key**: Set `X-API-Key` header.
+- **JWT**: Set `Authorization: Bearer <token>` header. Obtain token from `/v1/auth/token`.
 
 ---
 For more details on networking logic, see [`networking.md`](docs/networking.md). For a comprehensive list of API endpoints, see [`api-reference.md`](docs/api-reference.md). For practical examples, see [`EXAMPLES.md`](docs/EXAMPLES.md).

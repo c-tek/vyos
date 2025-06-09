@@ -259,6 +259,9 @@ VYOS_API_KEYS="changeme_api_key_1,another_secure_key"
 
 # Network Resource Pool Configuration (Default Ranges)
 # These define the default IP and port ranges for VM provisioning if not specified in the API request.
+# These are fallback values if no active IP/Port pools are configured in the database.
+# If IP/Port pools are defined in the database and active, they will take precedence over these environment variables.
+# For more details on IP/Port allocation logic, see [`docs/networking.md`](docs/networking.md).
 VYOS_LAN_BASE="192.168.64."       # Base IP for internal VM network (e.g., "192.168.64.")
 VYOS_LAN_START=100                # Starting octet for internal VM IPs (e.g., 192.168.64.100)
 VYOS_LAN_END=199                  # Ending octet for internal VM IPs (e.g., 192.168.64.199)
@@ -268,7 +271,7 @@ VYOS_PORT_END=33000               # Ending external port for NAT rules
 # Automation API Application Port
 VYOS_API_APP_PORT=8800            # Port for this automation API application to listen on (default 8800)
 
-# JWT Secret (for future JWT authentication features)
+# JWT Secret (for JWT authentication)
 # Keep this secret and unique for production environments.
 VYOS_JWT_SECRET="changeme_jwt_secret"
 ```
@@ -453,6 +456,14 @@ VYOS_API_KEY_ID="netauto"
 VYOS_API_KEY="<your-vyos-api-key>" # IMPORTANT: Replace with your actual VyOS API key
 AUTOMATION_API_KEYS="<your-automation-api-key-1>,<your-automation-api-key-2>" # IMPORTANT: Replace with your actual automation API keys
 JWT_SECRET="<your-jwt-secret>" # IMPORTANT: Replace with a strong, unique JWT secret
+# Default IP/Port ranges are now fallback if no active pools are configured in DB
+# If IP/Port pools are defined in the database and active, they will take precedence over these environment variables.
+# For more details on IP/Port allocation logic, see [`docs/networking.md`](docs/networking.md).
+VYOS_LAN_BASE="192.168.64."
+VYOS_LAN_START=100
+VYOS_LAN_END=199
+VYOS_PORT_START=32000
+VYOS_PORT_END=33000
 
 # --- System Setup ---
 echo "Updating system packages..."

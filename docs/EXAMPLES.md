@@ -482,3 +482,232 @@ if __name__ == "__main__":
     admin_token = "<your-admin-jwt-token>" # Replace with actual admin JWT token
     asyncio.run(delete_user(admin_token, "testuser"))
 ```
+
+# IP and Port Pool Management Examples (Requires Admin JWT Token or Admin API Key)
+
+### Example: Create an IP Pool
+**Curl**
+```bash
+curl -X POST "http://localhost:8800/v1/admin/ip-pools" \
+     -H "Authorization: Bearer <your-admin-jwt-token>" \
+     -H "Content-Type: application/json" \
+     -d '{"name": "dev-ip-pool", "base_ip": "10.0.0.", "start_octet": 10, "end_octet": 50, "is_active": true}'
+```
+**Python**
+```python
+import httpx
+import asyncio
+
+async def create_ip_pool(admin_token, name, base_ip, start_octet, end_octet, is_active=True):
+    url = "http://localhost:8800/v1/admin/ip-pools"
+    headers = {
+        "Authorization": f"Bearer {admin_token}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "name": name,
+        "base_ip": base_ip,
+        "start_octet": start_octet,
+        "end_octet": end_octet,
+        "is_active": is_active
+    }
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        print(f"Created IP Pool: {response.json()}")
+
+if __name__ == "__main__":
+    admin_token = "<your-admin-jwt-token>" # Replace with actual admin JWT token
+    asyncio.run(create_ip_pool(admin_token, "dev-ip-pool", "10.0.0.", 10, 50))
+```
+
+### Example: Get All IP Pools
+**Curl**
+```bash
+curl -X GET "http://localhost:8800/v1/admin/ip-pools" \
+     -H "Authorization: Bearer <your-admin-jwt-token>"
+```
+**Python**
+```python
+import httpx
+import asyncio
+
+async def get_all_ip_pools(admin_token):
+    url = "http://localhost:8800/v1/admin/ip-pools"
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=headers)
+        response.raise_for_status()
+        print(f"All IP Pools: {response.json()}")
+
+if __name__ == "__main__":
+    admin_token = "<your-admin-jwt-token>" # Replace with actual admin JWT token
+    asyncio.run(get_all_ip_pools(admin_token))
+```
+
+### Example: Update an IP Pool
+**Curl**
+```bash
+curl -X PUT "http://localhost:8800/v1/admin/ip-pools/dev-ip-pool" \
+     -H "Authorization: Bearer <your-admin-jwt-token>" \
+     -H "Content-Type: application/json" \
+     -d '{"is_active": false}'
+```
+**Python**
+```python
+import httpx
+import asyncio
+
+async def update_ip_pool(admin_token, name, is_active):
+    url = f"http://localhost:8800/v1/admin/ip-pools/{name}"
+    headers = {
+        "Authorization": f"Bearer {admin_token}",
+        "Content-Type": "application/json"
+    }
+    payload = {"is_active": is_active}
+    async with httpx.AsyncClient() as client:
+        response = await client.put(url, json=payload, headers=headers)
+        response.raise_for_status()
+        print(f"Updated IP Pool: {response.json()}")
+
+if __name__ == "__main__":
+    admin_token = "<your-admin-jwt-token>" # Replace with actual admin JWT token
+    asyncio.run(update_ip_pool(admin_token, "dev-ip-pool", False))
+```
+
+### Example: Delete an IP Pool
+**Curl**
+```bash
+curl -X DELETE "http://localhost:8800/v1/admin/ip-pools/dev-ip-pool" \
+     -H "Authorization: Bearer <your-admin-jwt-token>"
+```
+**Python**
+```python
+import httpx
+import asyncio
+
+async def delete_ip_pool(admin_token, name):
+    url = f"http://localhost:8800/v1/admin/ip-pools/{name}"
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    async with httpx.AsyncClient() as client:
+        response = await client.delete(url, headers=headers)
+        response.raise_for_status()
+        print(f"Deleted IP Pool: {name}")
+
+if __name__ == "__main__":
+    admin_token = "<your-admin-jwt-token>" # Replace with actual admin JWT token
+    asyncio.run(delete_ip_pool(admin_token, "dev-ip-pool"))
+```
+
+### Example: Create a Port Pool
+**Curl**
+```bash
+curl -X POST "http://localhost:8800/v1/admin/port-pools" \
+     -H "Authorization: Bearer <your-admin-jwt-token>" \
+     -H "Content-Type: application/json" \
+     -d '{"name": "web-ports", "start_port": 8000, "end_port": 8050, "is_active": true}'
+```
+**Python**
+```python
+import httpx
+import asyncio
+
+async def create_port_pool(admin_token, name, start_port, end_port, is_active=True):
+    url = "http://localhost:8800/v1/admin/port-pools"
+    headers = {
+        "Authorization": f"Bearer {admin_token}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "name": name,
+        "start_port": start_port,
+        "end_port": end_port,
+        "is_active": is_active
+    }
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        print(f"Created Port Pool: {response.json()}")
+
+if __name__ == "__main__":
+    admin_token = "<your-admin-jwt-token>" # Replace with actual admin JWT token
+    asyncio.run(create_port_pool(admin_token, "web-ports", 8000, 8050))
+```
+
+### Example: Get All Port Pools
+**Curl**
+```bash
+curl -X GET "http://localhost:8800/v1/admin/port-pools" \
+     -H "Authorization: Bearer <your-admin-jwt-token>"
+```
+**Python**
+```python
+import httpx
+import asyncio
+
+async def get_all_port_pools(admin_token):
+    url = "http://localhost:8800/v1/admin/port-pools"
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=headers)
+        response.raise_for_status()
+        print(f"All Port Pools: {response.json()}")
+
+if __name__ == "__main__":
+    admin_token = "<your-admin-jwt-token>" # Replace with actual admin JWT token
+    asyncio.run(get_all_port_pools(admin_token))
+```
+
+### Example: Update a Port Pool
+**Curl**
+```bash
+curl -X PUT "http://localhost:8800/v1/admin/port-pools/web-ports" \
+     -H "Authorization: Bearer <your-admin-jwt-token>" \
+     -H "Content-Type: application/json" \
+     -d '{"is_active": false}'
+```
+**Python**
+```python
+import httpx
+import asyncio
+
+async def update_port_pool(admin_token, name, is_active):
+    url = f"http://localhost:8800/v1/admin/port-pools/{name}"
+    headers = {
+        "Authorization": f"Bearer {admin_token}",
+        "Content-Type": "application/json"
+    }
+    payload = {"is_active": is_active}
+    async with httpx.AsyncClient() as client:
+        response = await client.put(url, json=payload, headers=headers)
+        response.raise_for_status()
+        print(f"Updated Port Pool: {response.json()}")
+
+if __name__ == "__main__":
+    admin_token = "<your-admin-jwt-token>" # Replace with actual admin JWT token
+    asyncio.run(update_port_pool(admin_token, "web-ports", False))
+```
+
+### Example: Delete a Port Pool
+**Curl**
+```bash
+curl -X DELETE "http://localhost:8800/v1/admin/port-pools/web-ports" \
+     -H "Authorization: Bearer <your-admin-jwt-token>"
+```
+**Python**
+```python
+import httpx
+import asyncio
+
+async def delete_port_pool(admin_token, name):
+    url = f"http://localhost:8800/v1/admin/port-pools/{name}"
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    async with httpx.AsyncClient() as client:
+        response = await client.delete(url, headers=headers)
+        response.raise_for_status()
+        print(f"Deleted Port Pool: {name}")
+
+if __name__ == "__main__":
+    admin_token = "<your-admin-jwt-token>" # Replace with actual admin JWT token
+    asyncio.run(delete_port_pool(admin_token, "web-ports"))
+```

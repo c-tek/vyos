@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from models import VMNetworkConfig, VMPortRule, PortType, PortStatus, APIKey, User
+from models import VMNetworkConfig, VMPortRule, PortType, PortStatus, APIKey, User, IPPool, PortPool
 from datetime import datetime
 from typing import List, Optional, Tuple, Dict, Any
 from fastapi import Depends, HTTPException, status
@@ -9,6 +9,7 @@ import os
 from config import SessionLocal
 from exceptions import ResourceAllocationError, APIKeyError
 from utils import hash_password, verify_password
+from sqlalchemy import or_
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
@@ -103,55 +104,75 @@ async def get_all_vms_status(db: AsyncSession):
         })
     return result_list
 
-def get_configured_ip_range() -> Tuple[str, int, int]:
-    # Example: get from environment or config file
-    import os
-    base = os.getenv("VYOS_LAN_BASE", "192.168.64.")
-    start = int(os.getenv("VYOS_LAN_START", 100))
-    end = int(os.getenv("VYOS_LAN_END", 199))
-    return base, start, end
+async def get_active_ip_pools(db: AsyncSession) -> List[IPPool]:
+    result = await db.execute(select(IPPool).filter(IPPool.is_active == 1))
+    return result.scalars().all()
 
-def get_configured_port_range() -> Tuple[int, int]:
-    import os
-    start = int(os.getenv("VYOS_PORT_START", 32000))
-    end = int(os.getenv("VYOS_PORT_END", 33000))
-    return start, end
+async def get_active_port_pools(db: AsyncSession) -> List[PortPool]:
+    result = await db.execute(select(PortPool).filter(PortPool.is_active == 1))
+    return result.scalars().all()
 
-async def find_next_available_ip(db: AsyncSession, ip_range: Dict[str, Any] = None) -> str:
+async def find_next_available_ip(db: AsyncSession, ip_range_override: Optional[Dict[str, Any]] = None) -> str:
     """
-    Find the next available IP in the given range. If ip_range is None, use default config/env.
-    ip_range: {"base": "192.168.66.", "start": 10, "end": 50}
+    Find the next available IP. Prioritize override, then active pools, then environment variables.
     """
-    if ip_range:
-        base = ip_range.get("base", "192.168.64.")
-        start = int(ip_range.get("start", 100))
-        end = int(ip_range.get("end", 199))
-    else:
-        base, start, end = get_configured_ip_range()
-    result = await db.execute(select(VMNetworkConfig.internal_ip))
-    used_ips = {ip for ip in result.scalars().all()}
-    for i in range(start, end + 1):
-        ip = f"{base}{i}"
-        if ip not in used_ips:
-            return ip
-    raise ResourceAllocationError(detail=f"No available IPs in {base}{start}-{base}{end} range")
+    used_ips_result = await db.execute(select(VMNetworkConfig.internal_ip))
+    used_ips = {ip for ip in used_ips_result.scalars().all()}
 
-async def find_next_available_port(db: AsyncSession, port_range: Dict[str, Any] = None) -> int:
+    ranges_to_check = []
+
+    # 1. Check override range
+    if ip_range_override:
+        ranges_to_check.append((ip_range_override["base"], ip_range_override["start"], ip_range_override["end"]))
+
+    # 2. Check active IP pools from DB
+    active_pools = await get_active_ip_pools(db)
+    for pool in active_pools:
+        ranges_to_check.append((pool.base_ip, pool.start_octet, pool.end_octet))
+
+    # 3. Fallback to environment variables if no active pools or override
+    if not ranges_to_check:
+        base = os.getenv("VYOS_LAN_BASE", "192.168.64.")
+        start = int(os.getenv("VYOS_LAN_START", 100))
+        end = int(os.getenv("VYOS_LAN_END", 199))
+        ranges_to_check.append((base, start, end))
+
+    for base, start, end in ranges_to_check:
+        for i in range(start, end + 1):
+            ip = f"{base}{i}"
+            if ip not in used_ips:
+                return ip
+    raise ResourceAllocationError(detail="No available IPs in configured ranges.")
+
+async def find_next_available_port(db: AsyncSession, port_range_override: Optional[Dict[str, Any]] = None) -> int:
     """
-    Find the next available port in the given range. If port_range is None, use default config/env.
-    port_range: {"start": 32000, "end": 33000}
+    Find the next available port. Prioritize override, then active pools, then environment variables.
     """
-    if port_range:
-        port_start = int(port_range.get("start", 32000))
-        port_end = int(port_range.get("end", 33000))
-    else:
-        port_start, port_end = get_configured_port_range()
-    result = await db.execute(select(VMPortRule.external_port))
-    used_ports = {port for port in result.scalars().all()}
-    for port in range(port_start, port_end + 1):
-        if port not in used_ports:
-            return port
-    raise ResourceAllocationError(detail=f"No available external ports in {port_start}-{port_end} range")
+    used_ports_result = await db.execute(select(VMPortRule.external_port))
+    used_ports = {port for port in used_ports_result.scalars().all()}
+
+    ranges_to_check = []
+
+    # 1. Check override range
+    if port_range_override:
+        ranges_to_check.append((port_range_override["start"], port_range_override["end"]))
+
+    # 2. Check active Port pools from DB
+    active_pools = await get_active_port_pools(db)
+    for pool in active_pools:
+        ranges_to_check.append((pool.start_port, pool.end_port))
+
+    # 3. Fallback to environment variables if no active pools or override
+    if not ranges_to_check:
+        start = int(os.getenv("VYOS_PORT_START", 32000))
+        end = int(os.getenv("VYOS_PORT_END", 33000))
+        ranges_to_check.append((start, end))
+
+    for start, end in ranges_to_check:
+        for port in range(start, end + 1):
+            if port not in used_ports:
+                return port
+    raise ResourceAllocationError(detail="No available external ports in configured ranges.")
 
 async def find_next_nat_rule_number(db: AsyncSession) -> int:
     result = await db.execute(select(VMPortRule.nat_rule_number))
@@ -247,4 +268,89 @@ async def update_user(db: AsyncSession, user: User, username: Optional[str] = No
 
 async def delete_user(db: AsyncSession, user: User):
     await db.delete(user)
+    await safe_commit(db)
+
+# IP Pool CRUD
+async def create_ip_pool(db: AsyncSession, name: str, base_ip: str, start_octet: int, end_octet: int, is_active: bool = True) -> IPPool:
+    ip_pool = IPPool(
+        name=name,
+        base_ip=base_ip,
+        start_octet=start_octet,
+        end_octet=end_octet,
+        is_active=1 if is_active else 0,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    db.add(ip_pool)
+    await safe_commit(db)
+    await db.refresh(ip_pool)
+    return ip_pool
+
+async def get_ip_pool_by_name(db: AsyncSession, name: str) -> Optional[IPPool]:
+    result = await db.execute(select(IPPool).filter(IPPool.name == name))
+    return result.scalars().first()
+
+async def get_all_ip_pools(db: AsyncSession) -> List[IPPool]:
+    result = await db.execute(select(IPPool))
+    return result.scalars().all()
+
+async def update_ip_pool(db: AsyncSession, ip_pool_obj: IPPool, name: Optional[str] = None, base_ip: Optional[str] = None, start_octet: Optional[int] = None, end_octet: Optional[int] = None, is_active: Optional[bool] = None) -> IPPool:
+    if name is not None:
+        ip_pool_obj.name = name
+    if base_ip is not None:
+        ip_pool_obj.base_ip = base_ip
+    if start_octet is not None:
+        ip_pool_obj.start_octet = start_octet
+    if end_octet is not None:
+        ip_pool_obj.end_octet = end_octet
+    if is_active is not None:
+        ip_pool_obj.is_active = 1 if is_active else 0
+    ip_pool_obj.updated_at = datetime.utcnow()
+    await safe_commit(db)
+    await db.refresh(ip_pool_obj)
+    return ip_pool_obj
+
+async def delete_ip_pool(db: AsyncSession, ip_pool_obj: IPPool):
+    await db.delete(ip_pool_obj)
+    await safe_commit(db)
+
+# Port Pool CRUD
+async def create_port_pool(db: AsyncSession, name: str, start_port: int, end_port: int, is_active: bool = True) -> PortPool:
+    port_pool = PortPool(
+        name=name,
+        start_port=start_port,
+        end_port=end_port,
+        is_active=1 if is_active else 0,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    db.add(port_pool)
+    await safe_commit(db)
+    await db.refresh(port_pool)
+    return port_pool
+
+async def get_port_pool_by_name(db: AsyncSession, name: str) -> Optional[PortPool]:
+    result = await db.execute(select(PortPool).filter(PortPool.name == name))
+    return result.scalars().first()
+
+async def get_all_port_pools(db: AsyncSession) -> List[PortPool]:
+    result = await db.execute(select(PortPool))
+    return result.scalars().all()
+
+async def update_port_pool(db: AsyncSession, port_pool_obj: PortPool, name: Optional[str] = None, start_port: Optional[int] = None, end_port: Optional[int] = None, is_active: Optional[bool] = None) -> PortPool:
+    if name is not None:
+        port_pool_obj.name = name
+    if start_port is not None:
+        port_pool_obj.start_port = start_port
+    if end_port is not None:
+        port_pool_obj.end_port = end_port
+    if is_active is not None:
+        port_pool_obj.is_active = 1 if is_active else 0
+    port_pool_obj.updated_at = datetime.utcnow()
+    await safe_commit(db)
+    await db.refresh(port_pool_obj)
+    return port_pool_obj
+
+async def delete_port_pool(db: AsyncSession, port_pool_obj: PortPool):
+    await db.delete(port_pool_obj)
     await safe_commit(db)

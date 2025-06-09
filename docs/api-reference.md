@@ -167,8 +167,93 @@ These endpoints are primarily for user authentication and management, typically 
 ### Admin Endpoints (`/v1/admin`)
 These endpoints require an API Key with admin privileges (`is_admin=true`) or a JWT token from an admin user.
 
-#### Create API Key
+#### IP Pool Management
+##### Create IP Pool
+`POST /v1/admin/ip-pools`
+- Requires admin privileges.
+- Request body:
+  ```json
+  {
+    "name": "my-ip-pool",
+    "base_ip": "192.168.70.",
+    "start_octet": 10,
+    "end_octet": 50,
+    "is_active": true
+  }
+  ```
+- Response: `IPPoolResponse` object.
+
+##### Get All IP Pools
+`GET /v1/admin/ip-pools`
+- Requires admin privileges.
+- Response: List of `IPPoolResponse` objects.
+
+##### Get Specific IP Pool
+`GET /v1/admin/ip-pools/{name}`
+- Requires admin privileges.
+- Response: `IPPoolResponse` object.
+
+##### Update IP Pool
+`PUT /v1/admin/ip-pools/{name}`
+- Requires admin privileges.
+- Request body:
+  ```json
+  {
+    "is_active": false
+  }
+  ```
+- Response: Updated `IPPoolResponse` object.
+
+##### Delete IP Pool
+`DELETE /v1/admin/ip-pools/{name}`
+- Requires admin privileges.
+- Response: `204 No Content` on success.
+
+#### Port Pool Management
+##### Create Port Pool
+`POST /v1/admin/port-pools`
+- Requires admin privileges.
+- Request body:
+  ```json
+  {
+    "name": "my-port-pool",
+    "start_port": 40000,
+    "end_port": 40100,
+    "is_active": true
+  }
+  ```
+- Response: `PortPoolResponse` object.
+
+##### Get All Port Pools
+`GET /v1/admin/port-pools`
+- Requires admin privileges.
+- Response: List of `PortPoolResponse` objects.
+
+##### Get Specific Port Pool
+`GET /v1/admin/port-pools/{name}`
+- Requires admin privileges.
+- Response: `PortPoolResponse` object.
+
+##### Update Port Pool
+`PUT /v1/admin/port-pools/{name}`
+- Requires admin privileges.
+- Request body:
+  ```json
+  {
+    "is_active": false
+  }
+  ```
+- Response: Updated `PortPoolResponse` object.
+
+##### Delete Port Pool
+`DELETE /v1/admin/port-pools/{name}`
+- Requires admin privileges.
+- Response: `204 No Content` on success.
+
+#### API Key Management
+##### Create API Key
 `POST /v1/admin/api-keys`
+- Requires admin privileges.
 - Request body:
   ```json
   {
@@ -177,28 +262,21 @@ These endpoints require an API Key with admin privileges (`is_admin=true`) or a 
     "expires_in_days": 365 // Optional: key expires in 365 days
   }
   ```
-- Response:
-  ```json
-  {
-    "id": 1,
-    "api_key": "generated_api_key_value",
-    "description": "API key for team A",
-    "is_admin": false,
-    "created_at": "2023-10-27T10:00:00.000Z",
-    "expires_at": "2024-10-26T10:00:00.000Z"
-  }
-  ```
+- Response: `APIKeyResponse` object.
 
-#### Get All API Keys
+##### Get All API Keys
 `GET /v1/admin/api-keys`
+- Requires admin privileges.
 - Response: List of `APIKeyResponse` objects.
 
-#### Get Specific API Key
+##### Get Specific API Key
 `GET /v1/admin/api-keys/{api_key_value}`
+- Requires admin privileges.
 - Response: `APIKeyResponse` object for the specified key.
 
-#### Update API Key
+##### Update API Key
 `PUT /v1/admin/api-keys/{api_key_value}`
+- Requires admin privileges.
 - Request body:
   ```json
   {
@@ -209,8 +287,9 @@ These endpoints require an API Key with admin privileges (`is_admin=true`) or a 
   ```
 - Response: Updated `APIKeyResponse` object.
 
-#### Delete API Key
+##### Delete API Key
 `DELETE /v1/admin/api-keys/{api_key_value}`
+- Requires admin privileges.
 - Response: `204 No Content` on success.
 
 ## Error Responses

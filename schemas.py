@@ -85,6 +85,57 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class IPPoolCreate(BaseModel):
+    name: str
+    base_ip: str
+    start_octet: int
+    end_octet: int
+    is_active: bool = True
+
+class IPPoolUpdate(BaseModel):
+    name: Optional[str] = None
+    base_ip: Optional[str] = None
+    start_octet: Optional[int] = None
+    end_octet: Optional[int] = None
+    is_active: Optional[bool] = None
+
+class IPPoolResponse(BaseModel):
+    id: int
+    name: str
+    base_ip: str
+    start_octet: int
+    end_octet: int
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class PortPoolCreate(BaseModel):
+    name: str
+    start_port: int
+    end_port: int
+    is_active: bool = True
+
+class PortPoolUpdate(BaseModel):
+    name: Optional[str] = None
+    start_port: Optional[int] = None
+    end_port: Optional[int] = None
+    is_active: Optional[bool] = None
+
+class PortPoolResponse(BaseModel):
+    id: int
+    name: str
+    start_port: int
+    end_port: int
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
 class APIKeyCreate(BaseModel):
     description: Optional[str] = None
     is_admin: bool = False

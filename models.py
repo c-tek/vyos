@@ -52,5 +52,26 @@ class User(Base):
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
 
+class IPPool(Base):
+    __tablename__ = "ip_pools"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, nullable=False)
+    base_ip = Column(String, nullable=False) # e.g., "192.168.64."
+    start_octet = Column(Integer, nullable=False)
+    end_octet = Column(Integer, nullable=False)
+    is_active = Column(Integer, default=1) # 0 for false, 1 for true
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+class PortPool(Base):
+    __tablename__ = "port_pools"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, nullable=False)
+    start_port = Column(Integer, nullable=False)
+    end_port = Column(Integer, nullable=False)
+    is_active = Column(Integer, default=1) # 0 for false, 1 for true
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
 def create_db_tables(engine):
     Base.metadata.create_all(bind=engine)
