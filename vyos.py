@@ -1,7 +1,7 @@
-import requests
+import httpx
 from config import get_vyos_config
 
-def vyos_api_call(commands, operation="set"):
+async def vyos_api_call(commands, operation="set"):
     vyos_cfg = get_vyos_config()
     url = f"https://{vyos_cfg['VYOS_IP']}:{vyos_cfg['VYOS_API_PORT']}/config"
     payload = {
@@ -12,11 +12,16 @@ def vyos_api_call(commands, operation="set"):
     }
     headers = {"Content-Type": "application/json"}
     try:
-        response = requests.post(url, json=payload, headers=headers, verify=False)
-        response.raise_for_status()
-        return response.json()
+        async with httpx.AsyncClient(verify=True) as client: # Changed verify=False to verify=True
+            response = await client.post(url, json=payload, headers=headers, timeout=30.0)
+            response.raise_for_status()
+            return response.json()
+    except httpx.RequestError as e:
+        return {"status": "error", "message": f"An error occurred while requesting VyOS API: {e}"}
+    except httpx.HTTPStatusError as e:
+        return {"status": "error", "message": f"VyOS API returned an error: {e.response.status_code} - {e.response.text}"}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": f"An unexpected error occurred: {e}"}
 
 # Example: generate VyOS commands for port forwarding
 

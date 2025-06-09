@@ -18,17 +18,17 @@ app = FastAPI(title="VyOS VM Network Automation API")
 
 # Create database tables on startup
 @app.on_event("startup")
-def on_startup():
-    create_db_tables(engine)
+async def on_startup():
+    async with engine.begin() as conn:
+        await conn.run_sync(create_db_tables)
     # Ensure at least one admin API key exists for initial setup
-    db = SessionLocal()
-    if not db.query(APIKey).filter(APIKey.is_admin == 1).first():
-        from crud import create_api_key
-        import secrets
-        admin_key = secrets.token_urlsafe(32)
-        create_api_key(db, admin_key, "Initial Admin Key", is_admin=True)
-        print(f"\n\n!!! No admin API key found. Created a new one: {admin_key} !!!\n\n")
-    db.close()
+    async with SessionLocal() as db:
+        if not await db.run_sync(lambda s: s.query(APIKey).filter(APIKey.is_admin == 1).first()):
+            from crud import create_api_key
+            import secrets
+            admin_key = secrets.token_urlsafe(32)
+            await db.run_sync(lambda s: create_api_key(s, admin_key, "Initial Admin Key", is_admin=True))
+            print(f"\n\n!!! No admin API key found. Created a new one: {admin_key} !!!\n\n")
 
 # Audit logging setup
 logging.basicConfig(

@@ -1,4 +1,5 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from models import VMNetworkConfig, VMPortRule, PortType, PortStatus
 from datetime import datetime
 from typing import List, Optional, Tuple, Dict, Any
@@ -10,22 +11,20 @@ from config import SessionLocal
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 # Utility: shared DB session dependency
-def get_db():
-    db = SessionLocal()
-    try:
+async def get_db():
+    async with SessionLocal() as db:
         yield db
-    finally:
-        db.close()
 
 from models import APIKey # Import the new APIKey model
 
-def get_api_key(api_key: str = Depends(api_key_header), db: Session = Depends(get_db)):
+async def get_api_key(api_key: str = Depends(api_key_header), db: AsyncSession = Depends(get_db)):
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing API Key",
         )
-    db_api_key = db.query(APIKey).filter(APIKey.api_key == api_key).first()
+    result = await db.execute(select(APIKey).filter(APIKey.api_key == api_key))
+    db_api_key = result.scalars().first()
     if not db_api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -38,7 +37,7 @@ def get_api_key(api_key: str = Depends(api_key_header), db: Session = Depends(ge
         )
     return db_api_key
 
-def get_admin_api_key(api_key: APIKey = Depends(get_api_key)):
+async def get_admin_api_key(api_key: APIKey = Depends(get_api_key)):
     if not api_key.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -46,10 +45,11 @@ def get_admin_api_key(api_key: APIKey = Depends(get_api_key)):
         )
     return api_key
 
-def get_vm_by_machine_id(db: Session, machine_id: str) -> Optional[VMNetworkConfig]:
-    return db.query(VMNetworkConfig).filter(VMNetworkConfig.machine_id == machine_id).first()
+async def get_vm_by_machine_id(db: AsyncSession, machine_id: str) -> Optional[VMNetworkConfig]:
+    result = await db.execute(select(VMNetworkConfig).filter(VMNetworkConfig.machine_id == machine_id))
+    return result.scalars().first()
 
-def create_vm(db: Session, machine_id: str, mac_address: str, internal_ip: str) -> VMNetworkConfig:
+async def create_vm(db: AsyncSession, machine_id: str, mac_address: str, internal_ip: str) -> VMNetworkConfig:
     vm = VMNetworkConfig(
         machine_id=machine_id,
         mac_address=mac_address,
@@ -58,11 +58,11 @@ def create_vm(db: Session, machine_id: str, mac_address: str, internal_ip: str) 
         updated_at=datetime.utcnow()
     )
     db.add(vm)
-    db.commit()
-    db.refresh(vm)
+    await db.commit()
+    await db.refresh(vm)
     return vm
 
-def add_port_rule(db: Session, vm: VMNetworkConfig, port_type: PortType, external_port: int, nat_rule_number: int, status: PortStatus = PortStatus.enabled) -> VMPortRule:
+async def add_port_rule(db: AsyncSession, vm: VMNetworkConfig, port_type: PortType, external_port: int, nat_rule_number: int, status: PortStatus = PortStatus.enabled) -> VMPortRule:
     rule = VMPortRule(
         vm=vm,
         port_type=port_type,
@@ -71,21 +71,23 @@ def add_port_rule(db: Session, vm: VMNetworkConfig, port_type: PortType, externa
         status=status
     )
     db.add(rule)
-    db.commit()
-    db.refresh(rule)
+    await db.commit()
+    await db.refresh(rule)
     return rule
 
-def set_port_status(db: Session, vm: VMNetworkConfig, port_type: PortType, status: PortStatus):
-    rule = db.query(VMPortRule).filter_by(vm=vm, port_type=port_type).first()
+async def set_port_status(db: AsyncSession, vm: VMNetworkConfig, port_type: PortType, status: PortStatus):
+    result = await db.execute(select(VMPortRule).filter_by(vm=vm, port_type=port_type))
+    rule = result.scalars().first()
     if rule:
         rule.status = status
         rule.vm.updated_at = datetime.utcnow()
-        db.commit()
-        db.refresh(rule)
+        await db.commit()
+        await db.refresh(rule)
     return rule
 
-def get_vm_ports_status(db: Session, vm: VMNetworkConfig):
-    rules = db.query(VMPortRule).filter_by(vm=vm).all()
+async def get_vm_ports_status(db: AsyncSession, vm: VMNetworkConfig):
+    result = await db.execute(select(VMPortRule).filter_by(vm=vm))
+    rules = result.scalars().all()
     ports = {}
     for r in rules:
         ports[r.port_type.value] = {
@@ -99,17 +101,18 @@ def get_vm_ports_status(db: Session, vm: VMNetworkConfig):
             ports[p] = {"status": "not_active", "external_port": None, "nat_rule_number": None}
     return ports
 
-def get_all_vms_status(db: Session):
-    vms = db.query(VMNetworkConfig).all()
-    result = []
+async def get_all_vms_status(db: AsyncSession):
+    result = await db.execute(select(VMNetworkConfig))
+    vms = result.scalars().all()
+    result_list = []
     for vm in vms:
-        ports = get_vm_ports_status(db, vm)
-        result.append({
+        ports = await get_vm_ports_status(db, vm)
+        result_list.append({
             "machine_id": vm.machine_id,
             "internal_ip": vm.internal_ip,
             "ports": ports
         })
-    return result
+    return result_list
 
 def get_configured_ip_range() -> Tuple[str, int, int]:
     # Example: get from environment or config file
@@ -125,7 +128,7 @@ def get_configured_port_range() -> Tuple[int, int]:
     end = int(os.getenv("VYOS_PORT_END", 33000))
     return start, end
 
-def find_next_available_ip(db: Session, ip_range: Dict[str, Any] = None) -> str:
+async def find_next_available_ip(db: AsyncSession, ip_range: Dict[str, Any] = None) -> str:
     """
     Find the next available IP in the given range. If ip_range is None, use default config/env.
     ip_range: {"base": "192.168.66.", "start": 10, "end": 50}
@@ -136,14 +139,15 @@ def find_next_available_ip(db: Session, ip_range: Dict[str, Any] = None) -> str:
         end = int(ip_range.get("end", 199))
     else:
         base, start, end = get_configured_ip_range()
-    used_ips = {vm.internal_ip for vm in db.query(VMNetworkConfig).all()}
+    result = await db.execute(select(VMNetworkConfig.internal_ip))
+    used_ips = {ip for ip in result.scalars().all()}
     for i in range(start, end + 1):
         ip = f"{base}{i}"
         if ip not in used_ips:
             return ip
     raise Exception(f"No available IPs in {base}{start}-{base}{end} range")
 
-def find_next_available_port(db: Session, port_range: Dict[str, Any] = None) -> int:
+async def find_next_available_port(db: AsyncSession, port_range: Dict[str, Any] = None) -> int:
     """
     Find the next available port in the given range. If port_range is None, use default config/env.
     port_range: {"start": 32000, "end": 33000}
@@ -153,22 +157,23 @@ def find_next_available_port(db: Session, port_range: Dict[str, Any] = None) -> 
         port_end = int(port_range.get("end", 33000))
     else:
         port_start, port_end = get_configured_port_range()
-    used_ports = {rule.external_port for rule in db.query(VMPortRule).all()}
+    result = await db.execute(select(VMPortRule.external_port))
+    used_ports = {port for port in result.scalars().all()}
     for port in range(port_start, port_end + 1):
         if port not in used_ports:
             return port
     raise Exception(f"No available external ports in {port_start}-{port_end} range")
 
-def find_next_nat_rule_number(db: Session) -> int:
-    used_rules = {rule.nat_rule_number for rule in db.query(VMPortRule).all()}
+async def find_next_nat_rule_number(db: AsyncSession) -> int:
+    result = await db.execute(select(VMPortRule.nat_rule_number))
+    used_rules = {rule for rule in result.scalars().all()}
     base = 10000
     for rule in range(base, base + 10000):
         if rule not in used_rules:
             return rule
     raise Exception("No available NAT rule numbers")
 
-# Example error-handling wrapper for DB operations
-def create_api_key(db: Session, api_key_value: str, description: Optional[str] = None, is_admin: bool = False, expires_at: Optional[datetime] = None) -> APIKey:
+async def create_api_key(db: AsyncSession, api_key_value: str, description: Optional[str] = None, is_admin: bool = False, expires_at: Optional[datetime] = None) -> APIKey:
     api_key = APIKey(
         api_key=api_key_value,
         description=description,
@@ -177,35 +182,37 @@ def create_api_key(db: Session, api_key_value: str, description: Optional[str] =
         expires_at=expires_at
     )
     db.add(api_key)
-    safe_commit(db)
-    db.refresh(api_key)
+    await safe_commit(db)
+    await db.refresh(api_key)
     return api_key
 
-def get_api_key_by_value(db: Session, api_key_value: str) -> Optional[APIKey]:
-    return db.query(APIKey).filter(APIKey.api_key == api_key_value).first()
+async def get_api_key_by_value(db: AsyncSession, api_key_value: str) -> Optional[APIKey]:
+    result = await db.execute(select(APIKey).filter(APIKey.api_key == api_key_value))
+    return result.scalars().first()
 
-def get_all_api_keys(db: Session) -> List[APIKey]:
-    return db.query(APIKey).all()
+async def get_all_api_keys(db: AsyncSession) -> List[APIKey]:
+    result = await db.execute(select(APIKey))
+    return result.scalars().all()
 
-def update_api_key(db: Session, api_key_obj: APIKey, description: Optional[str] = None, is_admin: Optional[bool] = None, expires_at: Optional[datetime] = None) -> APIKey:
+async def update_api_key(db: AsyncSession, api_key_obj: APIKey, description: Optional[str] = None, is_admin: Optional[bool] = None, expires_at: Optional[datetime] = None) -> APIKey:
     if description is not None:
         api_key_obj.description = description
     if is_admin is not None:
         api_key_obj.is_admin = 1 if is_admin else 0
     if expires_at is not None:
         api_key_obj.expires_at = expires_at
-    safe_commit(db)
-    db.refresh(api_key_obj)
+    await safe_commit(db)
+    await db.refresh(api_key_obj)
     return api_key_obj
 
-def delete_api_key(db: Session, api_key_obj: APIKey):
-    db.delete(api_key_obj)
-    safe_commit(db)
+async def delete_api_key(db: AsyncSession, api_key_obj: APIKey):
+    await db.delete(api_key_obj)
+    await safe_commit(db)
 
 # Example error-handling wrapper for DB operations
-def safe_commit(db: Session):
+async def safe_commit(db: AsyncSession):
     try:
-        db.commit()
+        await db.commit()
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise e

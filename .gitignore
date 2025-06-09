@@ -36,6 +36,7 @@ htmlcov/
 
 #internal files
 docs/processes.md
+docs/description_and_roadmap.md
 vyos.code-workspaces
 
 vyos.code-workspace
