@@ -31,48 +31,11 @@ pip install -r requirements.txt
 
 ## Running as a Service (systemd)
 
-To run the API as a background service (daemon), create a systemd unit file:
-
-1. Create `/etc/systemd/system/vyos-api.service`:
-    ```ini
-    [Unit]
-    Description=VyOS VM Network Automation API
-    After=network.target
-
-    [Service]
-    User=vyos  # or your user
-    WorkingDirectory=/path/to/vyos
-    ExecStart=/path/to/vyos/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8800
-    Restart=always
-    EnvironmentFile=/path/to/vyos/.env
-
-    [Install]
-    WantedBy=multi-user.target
-    ```
-2. Reload systemd and start the service:
-    ```bash
-    sudo systemctl daemon-reload
-    sudo systemctl enable vyos-api
-    sudo systemctl start vyos-api
-    sudo systemctl status vyos-api
-    ```
+For detailed instructions on how to run the API as a production service using systemd, please refer to the [Installation Guide](docs/vyos-installation.md#72-production-systemd-example).
 
 ## Optional: install.sh for Debian/Ubuntu
 
-You can automate setup with an install script. Example:
-```bash
-#!/bin/bash
-set -e
-sudo apt update
-sudo apt install -y python3 python3-venv python3-pip git
-cd /opt
-sudo git clone https://github.com/c-tek/vyos.git vyos-api
-cd vyos-api
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-# (Optional) Copy systemd unit and enable service
-```
+An automated installation script for Debian/Ubuntu is available. For detailed usage and configuration, please refer to the [Installation Guide](docs/vyos-installation.md#optional-installsh-for-debianubuntu).
 
 ## VyOS OS Note
 - VyOS is Debian-based, but not all images have Python3/pip/systemd for user services.
@@ -80,65 +43,17 @@ pip install -r requirements.txt
 - Document both options in the install guide.
 
 ## Configuration
-Edit `config.py` or set environment variables for:
-- `DATABASE_URL`
-- `VYOS_IP`
-- `VYOS_API_PORT`
-- `VYOS_API_KEY_ID`
-- `VYOS_API_KEY`
+The API is configured via environment variables. For a comprehensive guide on configuring the application, including database settings, VyOS connection details, and API keys, please refer to the [Configuration section in the Installation Guide](docs/vyos-installation.md#6-configuration).
 
 ## Running the API
-```bash
-# Default port is 8800, but you can override with the VYOS_API_PORT environment variable
-export VYOS_API_PORT=8080  # Example: run on port 8080
-uvicorn main:app --reload --port $VYOS_API_PORT
-```
-The API will be available at `http://localhost:8800/` by default, or at the port you specify.
+For detailed instructions on running the API in development or production, please refer to the [Running the API section in the Installation Guide](docs/vyos-installation.md#7-running-the-api).
 
 ## Quick Start for VyOS Integration
-See `docs/vyos-installation.md` for a full step-by-step tutorial on integrating this API with your VyOS router, including VyOS config, API setup, and usage examples.
+For a full step-by-step tutorial on integrating this API with your VyOS router, including VyOS configuration, API setup, and usage examples, please refer to the comprehensive [Installation Guide](docs/vyos-installation.md).
 
 ## Usage
 
-All API endpoints are prefixed with `/v1`. For example:
-
-### Provision a VM
-```http
-POST /v1/vms/provision
-X-API-Key: <your-api-key>
-{
-  "vm_name": "server-01",
-  "mac_address": "00:11:22:33:44:AA"
-}
-```
-Returns assigned IP, external ports, and NAT rule base.
-
-### Manage Ports (Template)
-```http
-POST /v1/vms/{machine_id}/ports/template
-X-API-Key: <your-api-key>
-{
-  "action": "pause", // or "create", "delete"
-  "ports": ["ssh", "http"] // optional
-}
-```
-
-### Manage Ports (Granular)
-```http
-POST /v1/vms/{machine_id}/ports/{port_name}
-X-API-Key: <your-api-key>
-{
-  "action": "enable" // or "disable"
-}
-```
-
-### Get Status
-```http
-GET /v1/vms/{machine_id}/ports/status
-X-API-Key: <your-api-key>
-GET /v1/ports/status
-X-API-Key: <your-api-key>
-```
+For detailed usage examples and API endpoint specifications, please refer to the [API Reference](docs/api-reference.md) and [Example Usage](docs/EXAMPLES.md) documentation.
 
 ## Security
 - All endpoints require an API key via the `X-API-Key` header.
@@ -239,10 +154,7 @@ curl -X POST "http://localhost:8000/vms/provision" \
 ```
 
 ## Troubleshooting
-- **Port already in use:** If you see an error about port 8800 being in use, set a different port with `export VYOS_API_PORT=8080` before starting the API.
-- **Database locked:** Ensure no other process is using `vyos.db` or switch to a production database.
-- **401 Unauthorized:** Make sure you are sending the correct `X-API-Key` header.
+For common issues and their resolutions, please refer to the [Troubleshooting section in the Installation Guide](docs/vyos-installation.md#10-troubleshooting).
 
 ## Discoverability
-- Example `install.sh` script and `vyos-api.service` systemd unit are provided in the repo for automated setup.
-- See `install.sh` in the repo root and `docs/vyos-api.service` for details.
+The project includes an `install.sh` script and a `vyos-api.service` systemd unit file for automated setup and running the API as a service. These are detailed in the [Installation Guide](docs/vyos-installation.md).

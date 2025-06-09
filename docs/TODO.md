@@ -64,8 +64,8 @@ This phase focuses on addressing fundamental performance, security, and error ha
 
 3.  **Secure VyOS API Communication:**
     *   **Objective:** Ensure secure communication with the VyOS router by validating SSL certificates.
-    *   **Action Points:** Update `docs/vyos-installation.md` and `docs/security.md` with instructions on configuring VyOS with valid SSL certificates and managing trusted CAs.
-    *   **Status:** Code implemented, documentation pending.
+    *   **Status:** Completed.
+    *   **Implementation Details:** The `httpx` calls in `vyos.py` were updated to set `verify=True`, enforcing SSL/TLS certificate validation. Documentation in `docs/security.md` and `docs/vyos-installation.md` has been updated with instructions on configuring VyOS with valid SSL certificates and managing trusted CAs.
 
 ### Phase 2: Advanced Authentication & Management (Next Priority)
 
