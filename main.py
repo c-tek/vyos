@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, Depends, HTTPException, status
 import logging
 import os
 from routers import router
+from admin import router as admin_router # Import the new admin router
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -10,8 +11,8 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt as pyjwt
 from schemas import LoginRequest
-from models import create_db_tables
-from config import engine
+from models import create_db_tables, APIKey
+from config import engine, SessionLocal
 
 app = FastAPI(title="VyOS VM Network Automation API")
 
@@ -19,6 +20,15 @@ app = FastAPI(title="VyOS VM Network Automation API")
 @app.on_event("startup")
 def on_startup():
     create_db_tables(engine)
+    # Ensure at least one admin API key exists for initial setup
+    db = SessionLocal()
+    if not db.query(APIKey).filter(APIKey.is_admin == 1).first():
+        from crud import create_api_key
+        import secrets
+        admin_key = secrets.token_urlsafe(32)
+        create_api_key(db, admin_key, "Initial Admin Key", is_admin=True)
+        print(f"\n\n!!! No admin API key found. Created a new one: {admin_key} !!!\n\n")
+    db.close()
 
 # Audit logging setup
 logging.basicConfig(
@@ -62,6 +72,7 @@ async def audit_log_middleware(request: Request, call_next):
     return response
 
 app.include_router(router, prefix="/v1")
+app.include_router(admin_router, prefix="/v1/admin", tags=["Admin"]) # Include the admin router
 app.add_middleware(SlowAPIMiddleware)
 
 @app.get("/")
@@ -69,14 +80,6 @@ def root():
     return {"message": "VyOS VM Network Automation API is running."}
 
 # Example: JWT login endpoint (for demo, not for production use)
-@app.post("/auth/jwt")
-def login_jwt(req: LoginRequest):
-    # For demo: accept any username/password, in production check securely
-    if req.username and req.password:
-        token = pyjwt.encode({"sub": req.username}, JWT_SECRET, algorithm=JWT_ALGORITHM)
-        return {"access_token": token, "token_type": "bearer"}
-    raise HTTPException(status_code=401, detail="Invalid credentials")
-
 # TODO: For full async support, refactor DB and VyOS calls to async-compatible libraries and update endpoints to async def.
 
 if __name__ == "__main__":

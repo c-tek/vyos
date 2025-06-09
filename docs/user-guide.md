@@ -52,19 +52,41 @@ uvicorn main:app --reload --port $VYOS_API_PORT
 
 ## Basic Usage
 - All endpoints require an API key via the `X-API-Key` header.
-- See `api-reference.md` for endpoint details.
+- See `api-reference.md` for full endpoint details.
 
-## Authentication
-- **API Key**: Set `X-API-Key` header.
-- **JWT**: Set `Authorization: Bearer <token>` header. Obtain token from `/auth/jwt`.
+## Authentication and API Key Management
+
+Access to the API is controlled via API Keys, which are managed by an administrator.
+
+### Initial Admin Key
+Upon the first startup of the API, if no admin API key exists in the database, a new one will be automatically generated and printed to the console. This key is essential for initial administrative access.
+
+### Managing API Keys (Admin Privileges Required)
+To manage API keys (create, retrieve, update, delete), you must use an API key that has `is_admin` privileges set to `true`. These operations are exposed via the `/v1/admin` endpoints.
+
+**Example: Create a new API Key (using an existing admin key)**
+```bash
+curl -X POST "http://localhost:8000/v1/admin/api-keys" \
+     -H "X-API-Key: <your-admin-api-key>" \
+     -H "Content-Type: application/json" \
+     -d '{"description": "API key for a new user", "is_admin": false, "expires_in_days": 365}'
+```
+
+**Example: Get all API Keys**
+```bash
+curl -X GET "http://localhost:8000/v1/admin/api-keys" \
+     -H "X-API-Key: <your-admin-api-key>"
+```
+
+For more details on admin endpoints, refer to the `api-reference.md`.
 
 ## Example: Provision a VM
 ```http
-POST /vms/provision
+POST /v1/vms/provision
 X-API-Key: <your-api-key>
 {
   "vm_name": "server-01",
-  "mac_address": "00:11:22:33:44:AA"
+  "mac_address": "00:11:22:33:44:AA" // Required
 }
 ```
 

@@ -1,0 +1,69 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from typing import List, Optional
+from datetime import datetime, timedelta
+import secrets
+
+from crud import get_db, get_admin_api_key, create_api_key, get_api_key_by_value, get_all_api_keys, update_api_key, delete_api_key
+from models import APIKey as DBAPIKey
+from schemas import APIKeyCreate, APIKeyResponse, APIKeyUpdate
+
+router = APIRouter()
+
+@router.post("/api-keys", response_model=APIKeyResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(get_admin_api_key)])
+def create_new_api_key(req: APIKeyCreate, db: Session = Depends(get_db)):
+    """
+    Create a new API key. Requires admin privileges.
+    """
+    api_key_value = secrets.token_urlsafe(32)
+    expires_at = None
+    if req.expires_in_days:
+        expires_at = datetime.utcnow() + timedelta(days=req.expires_in_days)
+
+    db_api_key = create_api_key(db, api_key_value, req.description, req.is_admin, expires_at)
+    return db_api_key
+
+@router.get("/api-keys", response_model=List[APIKeyResponse], dependencies=[Depends(get_admin_api_key)])
+def read_api_keys(db: Session = Depends(get_db)):
+    """
+    Retrieve all API keys. Requires admin privileges.
+    """
+    api_keys = get_all_api_keys(db)
+    return api_keys
+
+@router.get("/api-keys/{api_key_value}", response_model=APIKeyResponse, dependencies=[Depends(get_admin_api_key)])
+def read_api_key(api_key_value: str, db: Session = Depends(get_db)):
+    """
+    Retrieve a specific API key by its value. Requires admin privileges.
+    """
+    db_api_key = get_api_key_by_value(db, api_key_value)
+    if not db_api_key:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API Key not found")
+    return db_api_key
+
+@router.put("/api-keys/{api_key_value}", response_model=APIKeyResponse, dependencies=[Depends(get_admin_api_key)])
+def update_existing_api_key(api_key_value: str, req: APIKeyUpdate, db: Session = Depends(get_db)):
+    """
+    Update an existing API key. Requires admin privileges.
+    """
+    db_api_key = get_api_key_by_value(db, api_key_value)
+    if not db_api_key:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API Key not found")
+
+    expires_at = None
+    if req.expires_in_days is not None:
+        expires_at = datetime.utcnow() + timedelta(days=req.expires_in_days) if req.expires_in_days > 0 else None
+
+    updated_key = update_api_key(db, db_api_key, req.description, req.is_admin, expires_at)
+    return updated_key
+
+@router.delete("/api-keys/{api_key_value}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(get_admin_api_key)])
+def delete_existing_api_key(api_key_value: str, db: Session = Depends(get_db)):
+    """
+    Delete an API key. Requires admin privileges.
+    """
+    db_api_key = get_api_key_by_value(db, api_key_value)
+    if not db_api_key:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API Key not found")
+    delete_api_key(db, db_api_key)
+    return {"message": "API Key deleted successfully"}

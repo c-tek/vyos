@@ -34,5 +34,14 @@ class VMPortRule(Base):
     nat_rule_number = Column(Integer, unique=True)
     vm = relationship("VMNetworkConfig", back_populates="ports")
 
+class APIKey(Base):
+    __tablename__ = "api_keys"
+    id = Column(Integer, primary_key=True)
+    api_key = Column(String, unique=True, nullable=False)
+    description = Column(String, nullable=True)
+    is_admin = Column(Integer, default=0) # 0 for false, 1 for true
+    created_at = Column(DateTime)
+    expires_at = Column(DateTime, nullable=True)
+
 def create_db_tables(engine):
     Base.metadata.create_all(bind=engine)

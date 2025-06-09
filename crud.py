@@ -7,7 +7,6 @@ from fastapi.security import APIKeyHeader
 import os
 from config import SessionLocal
 
-API_KEYS = set(k.strip() for k in os.getenv("VYOS_API_KEYS", "changeme").split(",") if k.strip())
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 # Utility: shared DB session dependency
@@ -18,11 +17,32 @@ def get_db():
     finally:
         db.close()
 
-def get_api_key(api_key: str = Depends(api_key_header)):
-    if api_key not in API_KEYS:
+from models import APIKey # Import the new APIKey model
+
+def get_api_key(api_key: str = Depends(api_key_header), db: Session = Depends(get_db)):
+    if not api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing API Key",
+        )
+    db_api_key = db.query(APIKey).filter(APIKey.api_key == api_key).first()
+    if not db_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API Key",
+        )
+    if db_api_key.expires_at and db_api_key.expires_at < datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Expired API Key",
+        )
+    return db_api_key
+
+def get_admin_api_key(api_key: APIKey = Depends(get_api_key)):
+    if not api_key.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required",
         )
     return api_key
 
@@ -146,6 +166,41 @@ def find_next_nat_rule_number(db: Session) -> int:
         if rule not in used_rules:
             return rule
     raise Exception("No available NAT rule numbers")
+
+# Example error-handling wrapper for DB operations
+def create_api_key(db: Session, api_key_value: str, description: Optional[str] = None, is_admin: bool = False, expires_at: Optional[datetime] = None) -> APIKey:
+    api_key = APIKey(
+        api_key=api_key_value,
+        description=description,
+        is_admin=1 if is_admin else 0,
+        created_at=datetime.utcnow(),
+        expires_at=expires_at
+    )
+    db.add(api_key)
+    safe_commit(db)
+    db.refresh(api_key)
+    return api_key
+
+def get_api_key_by_value(db: Session, api_key_value: str) -> Optional[APIKey]:
+    return db.query(APIKey).filter(APIKey.api_key == api_key_value).first()
+
+def get_all_api_keys(db: Session) -> List[APIKey]:
+    return db.query(APIKey).all()
+
+def update_api_key(db: Session, api_key_obj: APIKey, description: Optional[str] = None, is_admin: Optional[bool] = None, expires_at: Optional[datetime] = None) -> APIKey:
+    if description is not None:
+        api_key_obj.description = description
+    if is_admin is not None:
+        api_key_obj.is_admin = 1 if is_admin else 0
+    if expires_at is not None:
+        api_key_obj.expires_at = expires_at
+    safe_commit(db)
+    db.refresh(api_key_obj)
+    return api_key_obj
+
+def delete_api_key(db: Session, api_key_obj: APIKey):
+    db.delete(api_key_obj)
+    safe_commit(db)
 
 # Example error-handling wrapper for DB operations
 def safe_commit(db: Session):

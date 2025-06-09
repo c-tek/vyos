@@ -53,3 +53,24 @@ class VMDecommissionRequest(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+class APIKeyCreate(BaseModel):
+    description: Optional[str] = None
+    is_admin: bool = False
+    expires_in_days: Optional[int] = None # Number of days until expiration
+
+class APIKeyUpdate(BaseModel):
+    description: Optional[str] = None
+    is_admin: Optional[bool] = None
+    expires_in_days: Optional[int] = None # Number of days until expiration (0 for no expiration)
+
+class APIKeyResponse(BaseModel):
+    id: int
+    api_key: str
+    description: Optional[str] = None
+    is_admin: bool
+    created_at: datetime
+    expires_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
