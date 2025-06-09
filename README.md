@@ -8,10 +8,11 @@ This project provides a FastAPI-based service for managing static DHCP assignmen
 - Template and granular port management (enable/disable/pause/delete)
 - Status endpoints for dashboard integration
 - Ready for MCP integration
-- API key authentication for all endpoints
+- **Authentication**: Now supports both API Key (X-API-Key) and local JWT (Authorization: Bearer ...). See [Security Guide](docs/security.md) and [Example Usage](docs/EXAMPLES.md) for details.
 - **Full Asynchronous Support:** All database and VyOS API calls are now asynchronous, improving concurrency and scalability.
 - **Enhanced Error Handling:** Provides clearer, more consistent, and specific error responses with custom exception classes and standardized schemas.
 - **Secure VyOS API Communication:** Enforces SSL/TLS certificate verification for communication with the VyOS router.
+- **IP/Port Pool Management:** Dynamic definition and management of IP and port ranges via API endpoints, moving away from environment variables for resource configuration.
 
 ## Documentation
 - [Installation Guide](docs/vyos-installation.md)
@@ -43,7 +44,7 @@ An automated installation script for Debian/Ubuntu is available. For detailed us
 - Document both options in the install guide.
 
 ## Configuration
-The API is configured via environment variables. For a comprehensive guide on configuring the application, including database settings, VyOS connection details, and API keys, please refer to the [Configuration section in the Installation Guide](docs/vyos-installation.md#6-configuration).
+The API is configured via environment variables for core settings (e.g., database, VyOS connection) and via API endpoints for dynamic resources like API keys, IP pools, and port pools. For a comprehensive guide on configuring the application, please refer to the [Configuration section in the Installation Guide](docs/vyos-installation.md#6-configuration).
 
 ## Running the API
 For detailed instructions on running the API in development or production, please refer to the [Running the API section in the Installation Guide](docs/vyos-installation.md#7-running-the-api).
@@ -56,32 +57,13 @@ For a full step-by-step tutorial on integrating this API with your VyOS router, 
 For detailed usage examples and API endpoint specifications, please refer to the [API Reference](docs/api-reference.md) and [Example Usage](docs/EXAMPLES.md) documentation.
 
 ## Security
-- All endpoints require an API key via the `X-API-Key` header.
-- Change the default API key in `crud.py` for production.
-- **Authentication**: Now supports both API Key (X-API-Key) and local JWT (Authorization: Bearer ...). See [Security Guide](docs/security.md) and [Example Usage](docs/EXAMPLES.md) for details.
+- **Authentication**: The API supports both API Key (X-API-Key) and JWT (Authorization: Bearer ...) authentication.
+- **API Key Management**: API keys are now managed dynamically via dedicated admin API endpoints, allowing for creation, retrieval, update, and deletion of keys with varying privileges.
+- **JWT Authentication**: Provides robust user management with roles. Users obtain a JWT token via login and use it for authenticated requests.
 - **Enhanced Error Handling**: Detailed error responses are provided for security-related issues (e.g., invalid/expired API keys, forbidden access).
 - **VyOS API SSL/TLS Verification**: Communication with the VyOS router now enforces SSL/TLS certificate verification. Refer to the [Installation Guide](docs/vyos-installation.md) for details on configuring VyOS with SSL and managing trusted CAs.
 
-## API Key Management
-
-All API endpoints require authentication using an API key provided in the `X-API-Key` HTTP header.
-
-### How API Keys Work
-- API keys are **not hardcoded** in the codebase.
-- The backend loads valid API keys from the `VYOS_API_KEYS` environment variable.
-- You can specify multiple valid API keys by separating them with commas, e.g.:
-  ```bash
-  export VYOS_API_KEYS="key1,key2,key3"
-  ```
-- The backend will accept any of the listed keys for authentication.
-- This allows for easy key rotation and multi-user access.
-
-### Example Usage
-```http
-X-API-Key: key1
-```
-
-> **Security Note:** Never use the default `changeme` key in production. Always set your own secure API keys using the environment variable.
+For detailed information on authentication methods and security best practices, refer to the [Security Guide](docs/security.md) and [Example Usage](docs/EXAMPLES.md).
 
 ## MCP Integration
 - Use `/mcp/provision` and `/mcp/decommission` for Model Context Protocol/AI workflows.
@@ -102,25 +84,6 @@ response = requests.post(url, json=payload, headers=headers)
 print(response.json())
 ```
 
-### 2. Provision a VM with Custom IP Range
-```python
-payload = {
-    "vm_name": "server-02",
-    "ip_range": {"base": "192.168.66.", "start": 10, "end": 50}
-}
-response = requests.post(url, json=payload, headers=headers)
-print(response.json())
-```
-
-### 2b. Provision a VM with Custom Port Range
-```python
-payload = {
-    "vm_name": "server-03",
-    "port_range": {"start": 35000, "end": 35010}
-}
-response = requests.post(url, json=payload, headers=headers)
-print(response.json())
-```
 
 ### 3. Pause Ports for a VM
 ```python

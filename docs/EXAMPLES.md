@@ -711,3 +711,29 @@ if __name__ == "__main__":
     admin_token = "<your-admin-jwt-token>" # Replace with actual admin JWT token
     asyncio.run(delete_port_pool(admin_token, "web-ports"))
 ```
+
+# VyOS Configuration Synchronization Examples (Requires Admin JWT Token or Admin API Key)
+
+### Example: Synchronize VyOS Configuration
+**Curl**
+```bash
+curl -X POST "http://localhost:8800/v1/admin/sync-vyos-config" \
+     -H "Authorization: Bearer <your-admin-jwt-token>"
+```
+**Python**
+```python
+import httpx
+import asyncio
+
+async def sync_vyos_config(admin_token):
+    url = "http://localhost:8800/v1/admin/sync-vyos-config"
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers)
+        response.raise_for_status()
+        print(f"Synchronization Report: {response.json()}")
+
+if __name__ == "__main__":
+    admin_token = "<your-admin-jwt-token>" # Replace with actual admin JWT token
+    asyncio.run(sync_vyos_config(admin_token))
+```

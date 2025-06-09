@@ -237,7 +237,9 @@ venv/bin/python -c 'from models import create_db_tables; create_db_tables()'
 
 ## 6. Configuration
 
-The automation API relies on environment variables for its configuration, including VyOS connection details, API keys, and network resource ranges. You can set these variables directly in your shell or, for persistent configuration, create a `.env` file in the project root.
+The automation API relies on environment variables for its core configuration, such as database connection details and VyOS router credentials. Dynamic resources like API keys, IP pools, and port pools are now managed via dedicated API endpoints.
+
+You can set environment variables directly in your shell or, for persistent configuration, create a `.env` file in the project root.
 
 **Recommended: Create a `.env` file**
 Create a file named `.env` in the `vyos-automation` directory with the following content. Replace placeholder values with your actual secrets and network details.
@@ -252,22 +254,6 @@ VYOS_API_PORT=443                 # VyOS API port (default 443 for HTTPS)
 VYOS_API_KEY_ID="netauto"        # API key ID configured on VyOS (e.g., 'netauto')
 VYOS_API_KEY="<your-vyos-api-key>"    # The secret key configured on VyOS
 
-# Automation API Keys (for this application)
-# Comma-separated list of API keys that clients will use to authenticate with this automation API.
-# Generate strong, unique keys. The first key created on startup will be an admin key if none exist.
-VYOS_API_KEYS="changeme_api_key_1,another_secure_key"
-
-# Network Resource Pool Configuration (Default Ranges)
-# These define the default IP and port ranges for VM provisioning if not specified in the API request.
-# These are fallback values if no active IP/Port pools are configured in the database.
-# If IP/Port pools are defined in the database and active, they will take precedence over these environment variables.
-# For more details on IP/Port allocation logic, see [`docs/networking.md`](docs/networking.md).
-VYOS_LAN_BASE="192.168.64."       # Base IP for internal VM network (e.g., "192.168.64.")
-VYOS_LAN_START=100                # Starting octet for internal VM IPs (e.g., 192.168.64.100)
-VYOS_LAN_END=199                  # Ending octet for internal VM IPs (e.g., 192.168.64.199)
-VYOS_PORT_START=32000             # Starting external port for NAT rules
-VYOS_PORT_END=33000               # Ending external port for NAT rules
-
 # Automation API Application Port
 VYOS_API_APP_PORT=8800            # Port for this automation API application to listen on (default 8800)
 
@@ -275,6 +261,10 @@ VYOS_API_APP_PORT=8800            # Port for this automation API application to 
 # Keep this secret and unique for production environments.
 VYOS_JWT_SECRET="changeme_jwt_secret"
 ```
+
+**Note on IP/Port Ranges and API Keys:**
+*   **IP and Port Pools:** Instead of environment variables, IP and Port ranges are now managed dynamically via the API's admin endpoints (e.g., `/v1/admin/ip-pools`, `/v1/admin/port-pools`). This allows for flexible, database-driven resource allocation. The environment variables `VYOS_LAN_BASE`, `VYOS_LAN_START`, `VYOS_LAN_END`, `VYOS_PORT_START`, `VYOS_PORT_END` are now **fallback values** used only if no active IP/Port pools are configured in the database. For more details on IP/Port allocation logic, see [`docs/networking.md`](docs/networking.md).
+*   **Automation API Keys:** API keys for this application are no longer managed via `VYOS_API_KEYS` environment variable. They are now managed dynamically via the `/v1/admin/api-keys` endpoints. The first API key created on startup will be an admin key if none exist.
 
 **Alternatively: Export Environment Variables (Temporary)**
 For temporary testing or if you manage environment variables via other means (e.g., Docker Compose, Kubernetes secrets), you can export them directly in your shell:
@@ -285,12 +275,6 @@ export VYOS_IP="192.168.64.1"
 export VYOS_API_PORT=443
 export VYOS_API_KEY_ID="netauto"
 export VYOS_API_KEY="<your-vyos-api-key>"
-export VYOS_API_KEYS="changeme_api_key_1,another_secure_key"
-export VYOS_LAN_BASE="192.168.64."
-export VYOS_LAN_START=100
-export VYOS_LAN_END=199
-export VYOS_PORT_START=32000
-export VYOS_PORT_END=33000
 export VYOS_API_APP_PORT=8800
 export VYOS_JWT_SECRET="changeme_jwt_secret"
 ```
@@ -456,8 +440,8 @@ VYOS_API_KEY_ID="netauto"
 VYOS_API_KEY="<your-vyos-api-key>" # IMPORTANT: Replace with your actual VyOS API key
 AUTOMATION_API_KEYS="<your-automation-api-key-1>,<your-automation-api-key-2>" # IMPORTANT: Replace with your actual automation API keys
 JWT_SECRET="<your-jwt-secret>" # IMPORTANT: Replace with a strong, unique JWT secret
-# Default IP/Port ranges are now fallback if no active pools are configured in DB
-# If IP/Port pools are defined in the database and active, they will take precedence over these environment variables.
+# Note: IP/Port ranges are now primarily managed via API endpoints.
+# These environment variables serve as fallback if no active pools are configured in the database.
 # For more details on IP/Port allocation logic, see [`docs/networking.md`](docs/networking.md).
 VYOS_LAN_BASE="192.168.64."
 VYOS_LAN_START=100
@@ -511,17 +495,14 @@ VYOS_IP=\"$VYOS_IP\"
 VYOS_API_PORT=443
 VYOS_API_KEY_ID=\"$VYOS_API_KEY_ID\"
 VYOS_API_KEY=\"$VYOS_API_KEY\"
-VYOS_API_KEYS=\"$AUTOMATION_API_KEYS\"
-VYOS_LAN_BASE=\"192.168.64.\"
-VYOS_LAN_START=100
-VYOS_LAN_END=199
-VYOS_PORT_START=32000
-VYOS_PORT_END=33000
 VYOS_API_APP_PORT=$API_PORT
 VYOS_JWT_SECRET=\"$JWT_SECRET\"
 EOF"
 sudo chown "$API_USER":"$API_USER" "$INSTALL_DIR"/.env
 sudo chmod 600 "$INSTALL_DIR"/.env # Restrict permissions for .env file
+
+echo "Note: IP/Port ranges and Automation API Keys are now managed via API endpoints."
+echo "The environment variables for IP/Port ranges in this script are fallbacks."
 
 # --- Systemd Service Setup ---
 echo "Creating systemd service file..."

@@ -167,6 +167,25 @@ These endpoints are primarily for user authentication and management, typically 
 ### Admin Endpoints (`/v1/admin`)
 These endpoints require an API Key with admin privileges (`is_admin=true`) or a JWT token from an admin user.
 
+#### VyOS Configuration Synchronization
+##### Synchronize VyOS Configuration
+`POST /v1/admin/sync-vyos-config`
+- Requires admin privileges.
+- This endpoint compares the current NAT rules on the VyOS router with the VM port rules stored in the database and applies necessary `set` or `delete` commands to bring them in sync.
+- Response:
+  ```json
+  {
+    "status": "success",
+    "message": "VyOS configuration synchronized successfully.",
+    "report": {
+      "added": ["VM vm1 Port SSH (Rule 10001)"],
+      "deleted": ["VM vm2 Port HTTP (Rule 10005)"],
+      "updated": [],
+      "no_change": ["VM vm3 Port HTTPS (Rule 10003)"]
+    }
+  }
+  ```
+
 #### IP Pool Management
 ##### Create IP Pool
 `POST /v1/admin/ip-pools`

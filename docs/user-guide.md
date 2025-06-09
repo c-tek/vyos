@@ -24,11 +24,9 @@ This guide explains how to install, configure, and use the VyOS VM Network Autom
    ```
 
 ## Configuration
-- Edit `config.py` or set environment variables for:
-  - `DATABASE_URL`
-  - `VYOS_IP`, `VYOS_API_PORT`, `VYOS_API_KEY_ID`, `VYOS_API_KEY`
-  - `VYOS_LAN_BASE`, `VYOS_LAN_START`, `VYOS_LAN_END` (for IP range)
-  - `VYOS_PORT_START`, `VYOS_PORT_END` (for port range)
+The API is configured via environment variables for core settings (e.g., database, VyOS connection) and via API endpoints for dynamic resources like API keys, IP pools, and port pools.
+- Core settings (e.g., `DATABASE_URL`, `VYOS_IP`, `VYOS_API_PORT`, `VYOS_API_KEY_ID`, `VYOS_API_KEY`) are set via environment variables or in `config.py`.
+- IP and Port ranges are now managed dynamically via the API's admin endpoints (e.g., `/v1/admin/ip-pools`, `/v1/admin/port-pools`).
 
 ## Running the API
 By default, the API runs on port 8800. You can change this by setting the `VYOS_API_PORT` environment variable:
@@ -51,7 +49,7 @@ uvicorn main:app --reload --port $VYOS_API_PORT
 - **500 Internal Server Error:** See server logs for details.
 
 ## Basic Usage
-- All endpoints require an API key via the `X-API-Key` header.
+- All endpoints require authentication via either an API Key (using the `X-API-Key` header) or a JWT (using the `Authorization: Bearer <token>` header).
 - See [`api-reference.md`](docs/api-reference.md) for full endpoint details and [`EXAMPLES.md`](docs/EXAMPLES.md) for practical usage examples.
 
 ## Authentication and User Management
