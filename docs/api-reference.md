@@ -1,12 +1,16 @@
 # API Reference: VyOS VM Network Automation API
 
 ## Authentication
-Access to the API is controlled via API Keys. These keys are managed by an administrator.
+Access to the API is controlled via API Keys or JWT (JSON Web Tokens).
 
 ## Required Headers
-All endpoints require an API Key to be provided in the `X-API-Key` header:
+For API Key authentication, all endpoints require an API Key to be provided in the `X-API-Key` header:
 ```
 X-API-Key: <your-api-key>
+```
+For JWT authentication, a Bearer token is required in the `Authorization` header:
+```
+Authorization: Bearer <your-jwt-token>
 ```
 
 ## Endpoints
@@ -101,8 +105,67 @@ X-API-Key: <your-api-key>
 `POST /v1/mcp/decommission`
 - Accepts and returns MCP-compliant context and input/output objects.
 
+### Authentication & User Management Endpoints (`/v1/auth` and `/v1/users`)
+These endpoints are primarily for user authentication and management, typically requiring admin privileges for user creation/modification.
+
+#### Obtain JWT Token (Login)
+`POST /v1/auth/token`
+- Request body (form-data or x-www-form-urlencoded):
+  ```
+  username: <your-username>
+  password: <your-password>
+  ```
+- Response:
+  ```json
+  {
+    "access_token": "your_jwt_token_here",
+    "token_type": "bearer"
+  }
+  ```
+
+#### Create User
+`POST /v1/users/`
+- Requires admin privileges (via JWT).
+- Request body:
+  ```json
+  {
+    "username": "newuser",
+    "password": "securepassword",
+    "roles": "user" // Optional, default is "user". Can be "admin", "user,admin", etc.
+  }
+  ```
+- Response: `UserResponse` object.
+
+#### Get All Users
+`GET /v1/users/`
+- Requires admin privileges (via JWT).
+- Response: List of `UserResponse` objects.
+
+#### Get Specific User
+`GET /v1/users/{username}`
+- Requires admin privileges (via JWT).
+- Response: `UserResponse` object for the specified user.
+
+#### Update User
+`PUT /v1/users/{username}`
+- Requires admin privileges (via JWT).
+- Request body:
+  ```json
+  {
+    "username": "updated_username", // Optional
+    "password": "new_secure_password", // Optional
+    "roles": "admin" // Optional
+  }
+  ```
+- Response: Updated `UserResponse` object.
+
+#### Delete User
+`DELETE /v1/users/{username}`
+- Requires admin privileges (via JWT).
+- Response: `204 No Content` on success.
+
 ### Admin Endpoints (`/v1/admin`)
-These endpoints require an API Key with admin privileges (`is_admin=true`).
+These endpoints require an API Key with admin privileges (`is_admin=true`) or a JWT token from an admin user.
 
 #### Create API Key
 `POST /v1/admin/api-keys`

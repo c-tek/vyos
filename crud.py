@@ -1,13 +1,14 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from models import VMNetworkConfig, VMPortRule, PortType, PortStatus, APIKey
+from models import VMNetworkConfig, VMPortRule, PortType, PortStatus, APIKey, User
 from datetime import datetime
 from typing import List, Optional, Tuple, Dict, Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import APIKeyHeader
 import os
 from config import SessionLocal
-from exceptions import ResourceAllocationError, APIKeyError # Import custom exceptions
+from exceptions import ResourceAllocationError, APIKeyError
+from utils import hash_password, verify_password
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
@@ -16,7 +17,6 @@ async def get_db():
     async with SessionLocal() as db:
         yield db
 
-from models import APIKey # Import the new APIKey model
 
 async def get_api_key(api_key: str = Depends(api_key_header), db: AsyncSession = Depends(get_db)):
     if not api_key:
@@ -205,3 +205,46 @@ async def safe_commit(db: AsyncSession):
     except Exception as e:
         await db.rollback()
         raise e
+
+# User CRUD Operations
+async def get_user_by_username(db: AsyncSession, username: str) -> Optional[User]:
+    result = await db.execute(select(User).filter(User.username == username))
+    return result.scalars().first()
+
+async def create_user(db: AsyncSession, username: str, password: str, roles: str = "user") -> User:
+    hashed_password = hash_password(password)
+    user = User(
+        username=username,
+        hashed_password=hashed_password,
+        roles=roles,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    db.add(user)
+    await safe_commit(db)
+    await db.refresh(user)
+    return user
+
+async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
+    result = await db.execute(select(User).filter(User.id == user_id))
+    return result.scalars().first()
+
+async def get_all_users(db: AsyncSession) -> List[User]:
+    result = await db.execute(select(User))
+    return result.scalars().all()
+
+async def update_user(db: AsyncSession, user: User, username: Optional[str] = None, password: Optional[str] = None, roles: Optional[str] = None) -> User:
+    if username is not None:
+        user.username = username
+    if password is not None:
+        user.hashed_password = hash_password(password)
+    if roles is not None:
+        user.roles = roles
+    user.updated_at = datetime.utcnow()
+    await safe_commit(db)
+    await db.refresh(user)
+    return user
+
+async def delete_user(db: AsyncSession, user: User):
+    await db.delete(user)
+    await safe_commit(db)

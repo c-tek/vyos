@@ -43,5 +43,14 @@ class APIKey(Base):
     created_at = Column(DateTime)
     expires_at = Column(DateTime, nullable=True)
 
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True)
+    username = Column(String, unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    roles = Column(String, default="user") # Comma-separated roles, e.g., "user,admin"
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
 def create_db_tables(engine):
     Base.metadata.create_all(bind=engine)

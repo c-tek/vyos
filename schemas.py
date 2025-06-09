@@ -61,6 +61,30 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    roles: Optional[str] = "user"
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    password: Optional[str] = None
+    roles: Optional[str] = None
+
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    roles: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
 class APIKeyCreate(BaseModel):
     description: Optional[str] = None
     is_admin: bool = False

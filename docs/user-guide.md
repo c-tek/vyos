@@ -16,11 +16,11 @@ This guide explains how to install, configure, and use the VyOS VM Network Autom
    ```
 3. **Install dependencies**
    ```bash
-   pip install fastapi uvicorn sqlalchemy pydantic requests
+   pip install -r requirements.txt
    ```
 4. **Initialize the database**
    ```bash
-   venv/bin/python -c 'from models import Base; from config import engine; Base.metadata.create_all(bind=engine)'
+   venv/bin/python -c 'from models import create_db_tables; create_db_tables()'
    ```
 
 ## Configuration
@@ -54,17 +54,20 @@ uvicorn main:app --reload --port $VYOS_API_PORT
 - All endpoints require an API key via the `X-API-Key` header.
 - See [`api-reference.md`](docs/api-reference.md) for full endpoint details and [`EXAMPLES.md`](docs/EXAMPLES.md) for practical usage examples.
 
-## Authentication and API Key Management
+## Authentication and User Management
 
-Access to the API is controlled via API Keys, which are managed by an administrator.
+Access to the API is controlled via **API Keys** or **JWT (JSON Web Tokens)**.
 
-### Initial Admin Key
-Upon the first startup of the API, if no admin API key exists in the database, a new one will be automatically generated and printed to the console. This key is essential for initial administrative access.
+### Initial Setup
+Upon the first startup of the API, if no admin API key exists in the database, a new one will be automatically generated and printed to the console. This key is essential for initial administrative access. Similarly, an initial admin user (`username: admin`, `password: adminpass`) will be created if no users exist, for JWT authentication. **Change these default credentials immediately in a production environment.**
 
-### Managing API Keys (Admin Privileges Required)
-To manage API keys (create, retrieve, update, delete), you must use an API key that has `is_admin` privileges set to `true`. These operations are exposed via the `/v1/admin` endpoints.
+### API Key Management
+API Keys are managed by an administrator. To manage API keys (create, retrieve, update, delete), you must use an API key that has `is_admin` privileges set to `true`, or an admin JWT token. These operations are exposed via the `/v1/admin/api-keys` endpoints.
 
-For examples on how to create and manage API keys, refer to [`docs/EXAMPLES.md`](docs/EXAMPLES.md). For more details on admin endpoints, refer to the [`api-reference.md`](docs/api-reference.md).
+### JWT Authentication
+JWT authentication provides a more robust user management system with roles. Users can obtain a JWT token by logging in with their username and password. This token is then used in the `Authorization: Bearer <token>` header for subsequent requests.
+
+For detailed examples on how to obtain JWT tokens, manage users, and use both API Keys and JWT for authentication, refer to [`docs/EXAMPLES.md`](docs/EXAMPLES.md). For more details on authentication endpoints and schemas, refer to the [`api-reference.md`](docs/api-reference.md).
 
 ## VyOS Integration
 For a full tutorial on preparing your VyOS router and integrating with this API, see [`vyos-installation.md`](docs/vyos-installation.md) in this folder.

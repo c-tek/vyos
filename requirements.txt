@@ -5,3 +5,5 @@ pydantic
 httpx
 pyjwt
 slowapi
+passlib[bcrypt]
+python-multipart

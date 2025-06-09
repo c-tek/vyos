@@ -2,14 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from schemas import VMProvisionRequest, VMProvisionResponse, PortActionRequest, ErrorResponse
 import crud
-from models import PortType, PortStatus
+from models import PortType, PortStatus, User
 from vyos import vyos_api_call, generate_port_forward_commands
-from crud import get_api_key, get_db
+from crud import get_db
+from main import get_jwt_user # Import get_jwt_user from main.py
 from sqlalchemy.exc import OperationalError
 from sqlalchemy import text
-import httpx # Import httpx for health check
+import httpx
 import os
-from exceptions import VyOSAPIError, ResourceAllocationError, VMNotFoundError, PortRuleNotFoundError # Import custom exceptions
+from exceptions import VyOSAPIError, ResourceAllocationError, VMNotFoundError, PortRuleNotFoundError
 
 router = APIRouter()
 
@@ -21,12 +22,12 @@ router.include_router(vms, prefix="/vms", tags=["VMs"])
 router.include_router(status, prefix="/status", tags=["Status"])
 router.include_router(mcp, prefix="/mcp", tags=["MCP"])
 
-@router.post("/provision", response_model=VMProvisionResponse, dependencies=[Depends(get_api_key)],
+@router.post("/provision", response_model=VMProvisionResponse, dependencies=[Depends(get_jwt_user)],
              responses={
                  status.HTTP_507_INSUFFICIENT_STORAGE: {"model": ErrorResponse, "description": "Resource Allocation Error"},
                  status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse, "description": "VyOS API Error or Internal Server Error"}
              })
-async def provision_vm(req: VMProvisionRequest, db: AsyncSession = Depends(get_db)):
+async def provision_vm(req: VMProvisionRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_jwt_user)):
     try:
         machine_id = req.vm_name
         mac_address = req.mac_address
@@ -59,12 +60,12 @@ async def provision_vm(req: VMProvisionRequest, db: AsyncSession = Depends(get_d
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred: {e}")
 
-@router.post("/vms/{machine_id}/ports/template", dependencies=[Depends(get_api_key)],
+@router.post("/vms/{machine_id}/ports/template", dependencies=[Depends(get_jwt_user)],
              responses={
                  status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "VM Not Found"},
                  status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse, "description": "VyOS API Error or Internal Server Error"}
              })
-async def template_ports(machine_id: str, req: PortActionRequest, db: AsyncSession = Depends(get_db)):
+async def template_ports(machine_id: str, req: PortActionRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_jwt_user)):
     vm = await crud.get_vm_by_machine_id(db, machine_id)
     if not vm:
         raise VMNotFoundError(detail=f"VM with machine_id '{machine_id}' not found")
@@ -93,12 +94,12 @@ async def template_ports(machine_id: str, req: PortActionRequest, db: AsyncSessi
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred: {e}")
 
-@router.post("/vms/{machine_id}/ports/{port_name}", dependencies=[Depends(get_api_key)],
+@router.post("/vms/{machine_id}/ports/{port_name}", dependencies=[Depends(get_jwt_user)],
              responses={
                  status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "VM or Port Rule Not Found"},
                  status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse, "description": "VyOS API Error or Internal Server Error"}
              })
-async def granular_port(machine_id: str, port_name: str, req: PortActionRequest, db: AsyncSession = Depends(get_db)):
+async def granular_port(machine_id: str, port_name: str, req: PortActionRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_jwt_user)):
     vm = await crud.get_vm_by_machine_id(db, machine_id)
     if not vm:
         raise VMNotFoundError(detail=f"VM with machine_id '{machine_id}' not found")
@@ -121,12 +122,16 @@ async def granular_port(machine_id: str, port_name: str, req: PortActionRequest,
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An unexpected error occurred: {e}")
 
-@router.delete("/vms/{machine_id}/decommission", dependencies=[Depends(get_api_key)],
+@router.delete("/vms/{machine_id}/decommission", dependencies=[Depends(get_jwt_user)],
              responses={
                  status.HTTP_404_NOT_FOUND: {"model": ErrorResponse, "description": "VM Not Found"},
                  status.HTTP_500_INTERNAL_SERVER_ERROR: {"model": ErrorResponse, "description": "VyOS API Error or Internal Server Error"}
              })
-async def decommission_vm(machine_id: str, db: AsyncSession = Depends(get_db)):
+async def decommission_vm(machine_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_jwt_user)):
+    # Check if the current user has admin role
+    if "admin" not in current_user.roles.split(','):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required for decommissioning VMs")
+
     vm = await crud.get_vm_by_machine_id(db, machine_id)
     if not vm:
         raise VMNotFoundError(detail=f"VM with machine_id '{machine_id}' not found")
