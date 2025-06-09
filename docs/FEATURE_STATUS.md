@@ -25,30 +25,19 @@ This phase focused on addressing fundamental performance, security, and error ha
 
 ## Phase 2: Advanced Authentication & Management
 
-**Status: Unimplemented**
+**Status: Completed**
 
 This phase builds upon the stable core established in Phase 1 to introduce more sophisticated user management and resource pooling.
 
 ### 1. Full JWT Authentication and Role-Based Access Control (RBAC)
 *   **Objective:** Implement a complete, secure JWT authentication flow with user roles for fine-grained access control.
-*   **Status:** Unimplemented.
-*   **Action Points:**
-    *   Add `User` model to `models.py` (username, hashed password, roles).
-    *   Implement user CRUD operations in `crud.py` using a secure password hashing library (e.g., `passlib[bcrypt]`).
-    *   Reintroduce a secure `/v1/auth/login` endpoint for user login and JWT token generation.
-    *   Enhance `get_jwt_user` to validate JWT tokens and extract user roles.
-    *   Create new FastAPI dependencies (e.g., `require_role("admin")`) to enforce access based on user roles and apply them to relevant API endpoints.
-    *   Update documentation.
+*   **Status:** Implemented.
+*   **Details:** The `User` model is defined in `models.py`, user CRUD operations are in `crud.py` with `passlib[bcrypt]` for hashing. The `/v1/auth/token` endpoint handles login and JWT generation. `get_jwt_user` in `main.py` validates tokens and extracts roles. Admin endpoints in `admin.py` use `get_admin_api_key` for RBAC. Documentation has been updated across `README.md`, `docs/api-reference.md`, `docs/security.md`, `docs/EXAMPLES.md`, and `docs/user-guide.md`.
 
 ### 2. IP/Port Pool Management API
 *   **Objective:** Allow dynamic definition and management of IP and port ranges via API endpoints, moving away from environment variables for resource configuration.
-*   **Status:** Unimplemented.
-*   **Action Points:**
-    *   Define `IPPool` and `PortPool` models in `models.py`.
-    *   Implement CRUD operations for these pools in `crud.py`.
-    *   Create new admin endpoints in `admin.py` for managing these resource pools.
-    *   Modify `find_next_available_ip` and `find_next_available_port` in `crud.py` to select from active, configured pools.
-    *   Update documentation.
+*   **Status:** Implemented.
+*   **Details:** `IPPool` and `PortPool` models are defined in `models.py` with CRUD operations in `crud.py`. Admin endpoints for pool management are in `admin.py`. Resource allocation logic in `crud.py` now uses these database-configured pools. Documentation has been updated across `README.md`, `docs/api-reference.md`, `docs/user-guide.md`, `docs/EXAMPLES.md`, and `docs/vyos-installation.md`.
 
 ## Phase 3: Operational Robustness & Advanced Features
 
