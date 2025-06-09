@@ -351,7 +351,10 @@ async def sync_vyos_config(db: AsyncSession = Depends(get_db)):
                     db_rules_map[key] = {
                         "external_port": port_details["external_port"],
                         "nat_rule_number": port_details["nat_rule_number"],
-                        "internal_ip": internal_ip
+                        "internal_ip": internal_ip,
+                        "protocol": port_details.get("protocol"), # Include protocol
+                        "source_ip": port_details.get("source_ip"), # Include source_ip
+                        "custom_description": port_details.get("custom_description") # Include custom_description
                     }
 
         vyos_rules_map = {}
@@ -362,7 +365,17 @@ async def sync_vyos_config(db: AsyncSession = Depends(get_db)):
             if len(parts) >= 2:
                 vm_name = parts[0]
                 port_type = parts[1].lower() # e.g., "SSH" -> "ssh"
-                vyos_rules_map[(vm_name, port_type)] = rule
+                vyos_rules_map[(vm_name, port_type)] = {
+                    "rule_number": rule.get("rule_number"),
+                    "description": rule.get("description"),
+                    "inbound_interface": rule.get("inbound_interface"),
+                    "destination_port": rule.get("destination_port"),
+                    "translation_address": rule.get("translation_address"),
+                    "translation_port": rule.get("translation_port"),
+                    "protocol": rule.get("protocol"), # Include protocol
+                    "source_ip": rule.get("source_ip"), # Include source_ip
+                    "disabled": rule.get("disabled")
+                }
 
         commands_to_apply = []
         sync_report = {"added": [], "deleted": [], "updated": [], "no_change": []}
@@ -375,18 +388,43 @@ async def sync_vyos_config(db: AsyncSession = Depends(get_db)):
                 # Rule exists in DB but not in VyOS, add it
                 commands_to_apply.extend(generate_port_forward_commands(
                     machine_id, db_details["internal_ip"], db_details["external_port"],
-                    db_details["nat_rule_number"], port_type, "set"
+                    db_details["nat_rule_number"], port_type, "set",
+                    protocol=db_details.get("protocol"),
+                    source_ip=db_details.get("source_ip"),
+                    custom_description=db_details.get("custom_description")
                 ))
                 sync_report["added"].append(f"VM {machine_id} Port {port_type} (Rule {db_details['nat_rule_number']})")
             else:
                 # Rule exists in both, check for discrepancies
-                # For simplicity, we'll just check if it's disabled in VyOS but enabled in DB
+                # Compare all relevant fields
+                needs_update = False
                 if vyos_rule.get("disabled") and db_details["status"] == "enabled":
+                    needs_update = True # Re-enable if disabled in VyOS but enabled in DB
+                if vyos_rule.get("destination_port") != db_details["external_port"]:
+                    needs_update = True
+                if vyos_rule.get("translation_address") != db_details["internal_ip"]:
+                    needs_update = True
+                if vyos_rule.get("protocol") != db_details.get("protocol"):
+                    needs_update = True
+                if vyos_rule.get("source_ip") != db_details.get("source_ip"):
+                    needs_update = True
+                # Note: Description comparison can be tricky due to dynamic generation vs custom.
+                # For now, we'll assume if custom_description is set in DB, it should match VyOS.
+                # Otherwise, we rely on the auto-generated one.
+                if db_details.get("custom_description") and vyos_rule.get("description") != db_details.get("custom_description"):
+                    needs_update = True
+                elif not db_details.get("custom_description") and vyos_rule.get("description") != f"{machine_id} {port_type.upper()}":
+                    needs_update = True
+
+                if needs_update:
                     commands_to_apply.extend(generate_port_forward_commands(
                         machine_id, db_details["internal_ip"], db_details["external_port"],
-                        db_details["nat_rule_number"], port_type, "enable" # Re-enable in VyOS
+                        db_details["nat_rule_number"], port_type, "set", # Use "set" to update all fields
+                        protocol=db_details.get("protocol"),
+                        source_ip=db_details.get("source_ip"),
+                        custom_description=db_details.get("custom_description")
                     ))
-                    sync_report["updated"].append(f"VM {machine_id} Port {port_type} (Rule {db_details['nat_rule_number']}) - Re-enabled")
+                    sync_report["updated"].append(f"VM {machine_id} Port {port_type} (Rule {db_details['nat_rule_number']}) - Updated")
                 else:
                     sync_report["no_change"].append(f"VM {machine_id} Port {port_type} (Rule {db_details['nat_rule_number']})")
 

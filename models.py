@@ -9,6 +9,12 @@ class PortType(enum.Enum):
     http = "http"
     https = "https"
 
+class PortProtocol(enum.Enum):
+    tcp = "tcp"
+    udp = "udp"
+    tcp_udp = "tcp_udp" # For both TCP and UDP
+    all = "all" # For all protocols
+
 class PortStatus(enum.Enum):
     enabled = "enabled"
     disabled = "disabled"
@@ -32,6 +38,9 @@ class VMPortRule(Base):
     external_port = Column(Integer, unique=True)
     status = Column(Enum(PortStatus), default=PortStatus.enabled)
     nat_rule_number = Column(Integer, unique=True)
+    protocol = Column(Enum(PortProtocol), default=PortProtocol.tcp) # New: protocol for NAT rule
+    source_ip = Column(String, nullable=True) # New: source IP for NAT rule (optional)
+    custom_description = Column(String, nullable=True) # New: custom description for NAT rule (optional)
     vm = relationship("VMNetworkConfig", back_populates="ports")
 
 class APIKey(Base):

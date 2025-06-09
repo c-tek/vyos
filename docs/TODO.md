@@ -16,23 +16,4 @@ This document outlines features that are declared in the documentation or planne
 
 ## Unimplemented Features & Proposed Enhancements
 
-### 1. Advanced Port Management
-
-*   **Description:** The current port management allows basic enable/disable/delete actions. However, more granular control over port forwarding rules, such as specifying source IP addresses/networks, protocols (TCP/UDP), and custom descriptions per rule, is not available.
-*   **Impact:** Limits the flexibility and control for network administrators who might need more specific NAT rule configurations.
-
-### 2. VyOS Configuration Synchronization and Rollback
-
-*   **Description:** There is no explicit mechanism to ensure that the VyOS router's configuration consistently matches the database state. Also, there's no built-in rollback feature for failed VyOS API calls, meaning partial configurations could be left on the router or database inconsistencies could arise.
-*   **Impact:** Potential for configuration drift between the API's database and the actual VyOS router, leading to inconsistencies and operational issues. Lack of rollback increases risk during critical operations.
-
-### 3. Monitoring and Alerting Integration
-
-*   **Description:** The API lacks integration with common monitoring tools (e.g., Prometheus, Grafana) and alerting systems (e.g., PagerDuty, Slack) for operational visibility and proactive issue detection.
-*   **Impact:** Difficult to monitor API performance, resource utilization, and quickly identify and respond to operational issues.
-
-### 4. Database Migrations
-
-*   **Description:** No explicit database migration tool (like Alembic) is used to manage schema changes.
-*   **Impact:** Manual database schema changes are error-prone and difficult to manage in a production environment, especially as the application evolves.
 

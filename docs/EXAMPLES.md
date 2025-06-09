@@ -101,21 +101,24 @@ curl -X POST "http://localhost:8800/v1/vms/provision" \
 
 ---
 
-# 2. Provision with Custom IP/Port Range
+# 2. Provision with Custom IP/Port Range and Advanced Port Settings
 
 ## Python
 ```python
 import httpx
 import asyncio
 
-async def provision_custom_vm():
-    url = "http://localhost:8800/vms/provision"
+async def provision_advanced_vm():
+    url = "http://localhost:8800/v1/vms/provision"
     headers = {"Authorization": "Bearer <your-jwt-token>"} # Replace with actual JWT token
     payload = {
-        "vm_name": "custom-vm",
-        "mac_address": "00:11:22:33:44:AA", # MAC address is now required
-        "ip_range": {"base": "192.168.66.", "start": 10, "end": 50},
-        "port_range": {"start": 35000, "end": 35010}
+        "vm_name": "advanced-vm",
+        "mac_address": "00:11:22:33:44:BB",
+        "ip_range": {"base": "192.168.67.", "start": 10, "end": 20},
+        "port_range": {"start": 36000, "end": 36010},
+        "protocol": "tcp_udp", # Example: apply to all ports in template
+        "source_ip": "172.16.0.0/24", # Example: apply to all ports in template
+        "custom_description": "Advanced VM Rule" # Example: apply to all ports in template
     }
     async with httpx.AsyncClient() as client:
         response = await client.post(url, json=payload, headers=headers)
@@ -123,7 +126,7 @@ async def provision_custom_vm():
         print(response.json())
 
 if __name__ == "__main__":
-    asyncio.run(provision_custom_vm())
+    asyncio.run(provision_advanced_vm())
 ```
 
 ## Curl
@@ -132,32 +135,155 @@ curl -X POST "http://localhost:8800/v1/vms/provision" \
      -H "Authorization: Bearer <your-jwt-token>" \
      -H "Content-Type: application/json" \
      -d '{
-           "vm_name": "custom-vm",
-           "mac_address": "00:11:22:33:44:AA",
-           "ip_range": {"base": "192.168.66.", "start": 10, "end": 50},
-           "port_range": {"start": 35000, "end": 35010}
+           "vm_name": "advanced-vm",
+           "mac_address": "00:11:22:33:44:BB",
+           "ip_range": {"base": "192.168.67.", "start": 10, "end": 20},
+           "port_range": {"start": 36000, "end": 36010},
+           "protocol": "tcp_udp",
+           "source_ip": "172.16.0.0/24",
+           "custom_description": "Advanced VM Rule"
          }'
 ```
 
 ## Postman
 - **Method**: POST
-- **URL**: http://localhost:8800/vms/provision
+- **URL**: http://localhost:8800/v1/vms/provision
 - **Headers**:
     - Authorization: Bearer <your-jwt-token>
     - Content-Type: application/json
 - **Body (raw, JSON)**:
 ```json
 {
-  "vm_name": "custom-vm",
-  "mac_address": "00:11:22:33:44:AA",
-  "ip_range": {"base": "192.168.66.", "start": 10, "end": 50},
-  "port_range": {"start": 35000, "end": 35010}
+  "vm_name": "advanced-vm",
+  "mac_address": "00:11:22:33:44:BB",
+  "ip_range": {"base": "192.168.67.", "start": 10, "end": 20},
+  "port_range": {"start": 36000, "end": 36010},
+  "protocol": "tcp_udp",
+  "source_ip": "172.16.0.0/24",
+  "custom_description": "Advanced VM Rule"
 }
 ```
 
 ---
 
-# 3. Pause Ports
+# 3. Manage Ports (Template)
+
+## Python
+```python
+import httpx
+import asyncio
+
+async def manage_template_ports():
+    url = "http://localhost:8800/v1/vms/server-01/ports/template"
+    headers = {"Authorization": "Bearer <your-jwt-token>"} # Replace with actual JWT token
+    payload = {
+        "action": "pause",
+        "ports": ["ssh", "http"],
+        "protocol": "tcp", # Optional: for "create" or "set" actions
+        "source_ip": "192.168.1.0/24", # Optional: for "create" or "set" actions
+        "custom_description": "Template Rule Update" # Optional: for "create" or "set" actions
+    }
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        print(response.json())
+
+if __name__ == "__main__":
+    asyncio.run(manage_template_ports())
+```
+
+## Curl
+```bash
+curl -X POST "http://localhost:8800/v1/vms/server-01/ports/template" \
+     -H "Authorization: Bearer <your-jwt-token>" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "action": "pause",
+           "ports": ["ssh", "http"],
+           "protocol": "tcp",
+           "source_ip": "192.168.1.0/24",
+           "custom_description": "Template Rule Update"
+         }'
+```
+
+## Postman
+- **Method**: POST
+- **URL**: http://localhost:8800/v1/vms/server-01/ports/template
+- **Headers**:
+    - Authorization: Bearer <your-jwt-token>
+    - Content-Type: application/json
+- **Body (raw, JSON)**:
+```json
+{
+  "action": "pause",
+  "ports": ["ssh", "http"],
+  "protocol": "tcp",
+  "source_ip": "192.168.1.0/24",
+  "custom_description": "Template Rule Update"
+}
+```
+
+---
+
+# 4. Manage Ports (Granular)
+
+## Python
+```python
+import httpx
+import asyncio
+
+async def manage_granular_port():
+    url = "http://localhost:8800/v1/vms/server-01/ports/ssh"
+    headers = {"Authorization": "Bearer <your-jwt-token>"} # Replace with actual JWT token
+    payload = {
+        "action": "set", # Can be "enable", "disable", "set", "delete"
+        "protocol": "tcp", # Optional: for "set" action
+        "source_ip": "10.0.0.50/32", # Optional: for "set" action
+        "custom_description": "Specific SSH Rule" # Optional: for "set" action
+    }
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        print(response.json())
+
+if __name__ == "__main__":
+    asyncio.run(manage_granular_port())
+```
+
+## Curl
+```bash
+curl -X POST "http://localhost:8800/v1/vms/server-01/ports/ssh" \
+     -H "Authorization: Bearer <your-jwt-token>" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "action": "set",
+           "protocol": "tcp",
+           "source_ip": "10.0.0.50/32",
+           "custom_description": "Specific SSH Rule"
+         }'
+```
+
+## Postman
+- **Method**: POST
+- **URL**: http://localhost:8800/v1/vms/server-01/ports/ssh
+- **Headers**:
+    - Authorization: Bearer <your-jwt-token>
+    - Content-Type: application/json
+- **Body (raw, JSON)**:
+```json
+{
+  "action": "set",
+  "protocol": "tcp",
+  "source_ip": "10.0.0.50/32",
+  "custom_description": "Specific SSH Rule"
+}
+```
+
+---
+
+# 5. Get All VM Status
+=======
+# 6. Advanced: Custom Port Pause/Resume
 
 ## Python
 ```python

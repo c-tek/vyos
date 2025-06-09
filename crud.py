@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from models import VMNetworkConfig, VMPortRule, PortType, PortStatus, APIKey, User, IPPool, PortPool
+from models import VMNetworkConfig, VMPortRule, PortType, PortStatus, APIKey, User, IPPool, PortPool, PortProtocol
 from datetime import datetime
 from typing import List, Optional, Tuple, Dict, Any
 from fastapi import Depends, HTTPException, status
@@ -52,16 +52,38 @@ async def create_vm(db: AsyncSession, machine_id: str, mac_address: str, interna
     await db.refresh(vm)
     return vm
 
-async def add_port_rule(db: AsyncSession, vm: VMNetworkConfig, port_type: PortType, external_port: int, nat_rule_number: int, status: PortStatus = PortStatus.enabled) -> VMPortRule:
+async def add_port_rule(db: AsyncSession, vm: VMNetworkConfig, port_type: PortType, external_port: int, nat_rule_number: int,
+                        status: PortStatus = PortStatus.enabled, protocol: Optional[PortProtocol] = None,
+                        source_ip: Optional[str] = None, custom_description: Optional[str] = None) -> VMPortRule:
     rule = VMPortRule(
         vm=vm,
         port_type=port_type,
         external_port=external_port,
         nat_rule_number=nat_rule_number,
-        status=status
+        status=status,
+        protocol=protocol,
+        source_ip=source_ip,
+        custom_description=custom_description
     )
     db.add(rule)
     await db.commit()
+    await db.refresh(rule)
+    return rule
+
+async def update_port_rule(db: AsyncSession, rule: VMPortRule, status: Optional[PortStatus] = None,
+                           protocol: Optional[PortProtocol] = None, source_ip: Optional[str] = None,
+                           custom_description: Optional[str] = None) -> VMPortRule:
+    if status is not None:
+        rule.status = status
+    if protocol is not None:
+        rule.protocol = protocol
+    if source_ip is not None:
+        rule.source_ip = source_ip
+    if custom_description is not None:
+        rule.custom_description = custom_description
+    
+    rule.vm.updated_at = datetime.utcnow() # Update parent VM's timestamp
+    await safe_commit(db)
     await db.refresh(rule)
     return rule
 
@@ -83,12 +105,22 @@ async def get_vm_ports_status(db: AsyncSession, vm: VMNetworkConfig):
         ports[r.port_type.value] = {
             "status": r.status.value,
             "external_port": r.external_port,
-            "nat_rule_number": r.nat_rule_number
+            "nat_rule_number": r.nat_rule_number,
+            "protocol": r.protocol.value if r.protocol else None, # Include protocol
+            "source_ip": r.source_ip, # Include source_ip
+            "custom_description": r.custom_description # Include custom_description
         }
     # Ensure all port types are present
     for p in ["ssh", "http", "https"]:
         if p not in ports:
-            ports[p] = {"status": "not_active", "external_port": None, "nat_rule_number": None}
+            ports[p] = {
+                "status": "not_active",
+                "external_port": None,
+                "nat_rule_number": None,
+                "protocol": None,
+                "source_ip": None,
+                "custom_description": None
+            }
     return ports
 
 async def get_all_vms_status(db: AsyncSession):

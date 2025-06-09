@@ -25,7 +25,10 @@ Authorization: Bearer <your-jwt-token>
     "vm_name": "server-01",
     "mac_address": "00:11:22:33:44:AA", // Required
     "ip_range": { "base": "192.168.66.", "start": 10, "end": 50 }, // optional: override default IP range
-    "port_range": { "start": 35000, "end": 35010 } // optional: override default port range
+    "port_range": { "start": 35000, "end": 35010 }, // optional: override default port range
+    "protocol": "tcp", // optional: default is tcp. Can be "tcp", "udp", "tcp_udp", "all"
+    "source_ip": "10.0.0.10/32", // optional: source IP address or network for NAT rule
+    "custom_description": "My custom SSH rule" // optional: custom description for NAT rule
   }
   ```
 - Response:
@@ -33,7 +36,32 @@ Authorization: Bearer <your-jwt-token>
   {
     "status": "success",
     "internal_ip": "192.168.66.10",
-    "external_ports": { "ssh": 32000, "http": 32001, "https": 32002 },
+    "external_ports": {
+      "ssh": {
+        "status": "enabled",
+        "external_port": 32000,
+        "nat_rule_number": 10001,
+        "protocol": "tcp",
+        "source_ip": "10.0.0.10/32",
+        "custom_description": "My custom SSH rule"
+      },
+      "http": {
+        "status": "enabled",
+        "external_port": 32001,
+        "nat_rule_number": 10002,
+        "protocol": "tcp",
+        "source_ip": null,
+        "custom_description": null
+      },
+      "https": {
+        "status": "enabled",
+        "external_port": 32002,
+        "nat_rule_number": 10003,
+        "protocol": "tcp",
+        "source_ip": null,
+        "custom_description": null
+      }
+    },
     "nat_rule_base": 10001
   }
   ```
@@ -42,14 +70,25 @@ Authorization: Bearer <your-jwt-token>
 `POST /v1/vms/{machine_id}/ports/template`
 - Request body:
   ```json
-  { "action": "pause", "ports": ["ssh", "http"] }
+  {
+    "action": "pause", // "create", "delete", "pause", "enable", "disable"
+    "ports": ["ssh", "http"], // Optional: defaults to all standard ports if not specified
+    "protocol": "tcp", // Optional: for "create" or "set" actions, specifies protocol
+    "source_ip": "10.0.0.10/32", // Optional: for "create" or "set" actions, specifies source IP
+    "custom_description": "My custom rule" // Optional: for "create" or "set" actions, specifies custom description
+  }
   ```
 
 #### Manage Ports (Granular)
 `POST /v1/vms/{machine_id}/ports/{port_name}`
 - Request body:
   ```json
-  { "action": "enable" }
+  {
+    "action": "enable", // "enable", "disable", "set", "delete"
+    "protocol": "tcp", // Optional: for "set" action, specifies protocol
+    "source_ip": "10.0.0.10/32", // Optional: for "set" action, specifies source IP
+    "custom_description": "My custom rule" // Optional: for "set" action, specifies custom description
+  }
   ```
 
 #### Decommission a VM
@@ -69,9 +108,30 @@ Authorization: Bearer <your-jwt-token>
   "machine_id": "server-01",
   "internal_ip": "192.168.64.100",
   "ports": {
-    "ssh": {"status": "enabled", "external_port": 32000, "nat_rule_number": 10001},
-    "http": {"status": "enabled", "external_port": 32001, "nat_rule_number": 10002},
-    "https": {"status": "not_active", "external_port": null, "nat_rule_number": null}
+    "ssh": {
+      "status": "enabled",
+      "external_port": 32000,
+      "nat_rule_number": 10001,
+      "protocol": "tcp",
+      "source_ip": null,
+      "custom_description": "server-01 SSH"
+    },
+    "http": {
+      "status": "enabled",
+      "external_port": 32001,
+      "nat_rule_number": 10002,
+      "protocol": "tcp",
+      "source_ip": null,
+      "custom_description": "server-01 HTTP"
+    },
+    "https": {
+      "status": "not_active",
+      "external_port": null,
+      "nat_rule_number": null,
+      "protocol": null,
+      "source_ip": null,
+      "custom_description": null
+    }
   }
 }
 ```
@@ -85,9 +145,30 @@ Authorization: Bearer <your-jwt-token>
     "machine_id": "server-01",
     "internal_ip": "192.168.64.100",
     "ports": {
-      "ssh": {"status": "enabled", "external_port": 32000, "nat_rule_number": 10001},
-      "http": {"status": "enabled", "external_port": 32001, "nat_rule_number": 10002},
-      "https": {"status": "not_active", "external_port": null, "nat_rule_number": null}
+      "ssh": {
+        "status": "enabled",
+        "external_port": 32000,
+        "nat_rule_number": 10001,
+        "protocol": "tcp",
+        "source_ip": null,
+        "custom_description": "server-01 SSH"
+      },
+      "http": {
+        "status": "enabled",
+        "external_port": 32001,
+        "nat_rule_number": 10002,
+        "protocol": "tcp",
+        "source_ip": null,
+        "custom_description": "server-01 HTTP"
+      },
+      "https": {
+        "status": "not_active",
+        "external_port": null,
+        "nat_rule_number": null,
+        "protocol": null,
+        "source_ip": null,
+        "custom_description": null
+      }
     }
   }
 ]

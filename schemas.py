@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Literal, Dict, Any
 from datetime import datetime
+from models import PortProtocol # Import PortProtocol enum
 
 class ErrorResponse(BaseModel):
     detail: str = Field(..., description="A human-readable explanation of the error.")
@@ -12,6 +13,9 @@ class ValidationErrorResponse(ErrorResponse):
 class PortActionRequest(BaseModel):
     action: Literal["create", "delete", "pause", "enable", "disable"]
     ports: Optional[List[str]] = None  # ["ssh", "http", "https"]
+    protocol: Optional[PortProtocol] = None # New: protocol for NAT rule
+    source_ip: Optional[str] = None # New: source IP for NAT rule (optional)
+    custom_description: Optional[str] = None # New: custom description for NAT rule (optional)
 
 class VMProvisionRequest(BaseModel):
     vm_name: str
@@ -19,6 +23,9 @@ class VMProvisionRequest(BaseModel):
     metadata: Optional[dict] = None
     ip_range: Optional[Dict[str, Any]] = None  # {"base": ..., "start": ..., "end": ...}
     port_range: Optional[Dict[str, Any]] = None  # {"start": ..., "end": ...} (future)
+    protocol: Optional[PortProtocol] = None # New: protocol for NAT rule
+    source_ip: Optional[str] = None # New: source IP for NAT rule (optional)
+    custom_description: Optional[str] = None # New: custom description for NAT rule (optional)
 
 class VMProvisionResponse(BaseModel):
     status: str

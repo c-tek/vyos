@@ -7,3 +7,5 @@ pyjwt
 slowapi
 passlib[bcrypt]
 python-multipart
+alembic
+prometheus_client

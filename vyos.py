@@ -61,6 +61,8 @@ async def get_vyos_nat_rules():
                             "destination_port": int(rule_details.get("destination", {}).get("port")),
                             "translation_address": rule_details.get("translation", {}).get("address"),
                             "translation_port": int(rule_details.get("translation", {}).get("port")),
+                            "protocol": rule_details.get("protocol"), # New: protocol
+                            "source_ip": rule_details.get("source", {}).get("address"), # New: source IP
                             "disabled": "disable" in rule_details # Check if 'disable' key exists
                         })
                     except (ValueError, TypeError, AttributeError):
@@ -83,23 +85,32 @@ async def get_vyos_nat_rules():
     except Exception as e:
         raise VyOSAPIError(detail=f"An unexpected error occurred while fetching NAT rules: {e}")
 
-def generate_port_forward_commands(vm_name, internal_ip, external_port, nat_rule_number, port_type, action, status=None):
+def generate_port_forward_commands(vm_name: str, internal_ip: Optional[str], external_port: Optional[int],
+                                  nat_rule_number: int, port_type: str, action: str,
+                                  protocol: Optional[str] = None, source_ip: Optional[str] = None,
+                                  custom_description: Optional[str] = None):
     # action: "set", "delete", "disable", "enable"
-    # status: None, "enabled", "disabled"
     port_map = {"ssh": 22, "http": 80, "https": 443}
     commands = []
+    
+    # Determine the description for the NAT rule
+    description = custom_description if custom_description else f"{vm_name} {port_type.upper()}"
+
     if action == "set":
-        commands.extend([
-            f"set nat destination rule {nat_rule_number} description '{vm_name} {port_type.upper()}'",
-            f"set nat destination rule {nat_rule_number} inbound-interface 'eth0'",
-            f"set nat destination rule {nat_rule_number} destination port '{external_port}'",
-            f"set nat destination rule {nat_rule_number} translation address '{internal_ip}'",
-            f"set nat destination rule {nat_rule_number} translation port '{port_map[port_type]}'"
-        ])
+        commands.append(f"set nat destination rule {nat_rule_number} description '{description}'")
+        commands.append(f"set nat destination rule {nat_rule_number} inbound-interface 'eth0'")
+        commands.append(f"set nat destination rule {nat_rule_number} destination port '{external_port}'")
+        commands.append(f"set nat destination rule {nat_rule_number} translation address '{internal_ip}'")
+        commands.append(f"set nat destination rule {nat_rule_number} translation port '{port_map[port_type]}'")
+        
+        if protocol:
+            commands.append(f"set nat destination rule {nat_rule_number} protocol '{protocol}'")
+        if source_ip:
+            commands.append(f"set nat destination rule {nat_rule_number} source address '{source_ip}'")
+
     elif action == "delete":
         commands.append(f"delete nat destination rule {nat_rule_number}")
     elif action in ("disable", "enable"):
-        # For VyOS, disabling/enabling can be done by setting a 'disable' flag
         if action == "disable":
             commands.append(f"set nat destination rule {nat_rule_number} disable")
         else:
