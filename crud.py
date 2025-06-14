@@ -1,38 +1,35 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from models import VMNetworkConfig, VMPortRule, PortType, PortStatus, APIKey, User, IPPool, PortPool, PortProtocol
+from sqlalchemy.orm import Session # Keep for type hints if any sync part remains, but prefer AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession # New
+from sqlalchemy import select # New
+from models import VMNetworkConfig, VMPortRule, PortType, PortStatus, User # Import User model
+from schemas import UserCreate, UserUpdate # Import UserUpdate
+from utils import hash_password # Ensure hash_password is here or defined
 from datetime import datetime
 from typing import List, Optional, Tuple, Dict, Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import APIKeyHeader
 import os
-from config import SessionLocal
-from exceptions import ResourceAllocationError, APIKeyError
-from utils import hash_password, verify_password
-from sqlalchemy import or_
+from config import SessionLocal, AsyncSessionLocal, get_async_db # Updated imports
+from exceptions import ResourceAllocationError # Import ResourceAllocationError
 
+API_KEYS = set(k.strip() for k in os.getenv("VYOS_API_KEYS", "changeme").split(",") if k.strip())
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
-# Utility: shared DB session dependency
-async def get_db():
-    async with SessionLocal() as db:
+# Utility: shared DB session dependency (original sync version, might be deprecated or used for sync-specific tasks)
+def get_db():
+    db = SessionLocal()
+    try:
         yield db
+    finally:
+        db.close()
 
-
-async def get_api_key(api_key: str = Depends(api_key_header), db: AsyncSession = Depends(get_db)):
-    if not api_key:
-        raise APIKeyError(detail="Invalid or missing API Key", status_code=status.HTTP_401_UNAUTHORIZED)
-    result = await db.execute(select(APIKey).filter(APIKey.api_key == api_key))
-    db_api_key = result.scalars().first()
-    if not db_api_key:
-        raise APIKeyError(detail="Invalid API Key", status_code=status.HTTP_401_UNAUTHORIZED)
-    if db_api_key.expires_at and db_api_key.expires_at < datetime.utcnow():
-        raise APIKeyError(detail="Expired API Key", status_code=status.HTTP_401_UNAUTHORIZED)
-    return db_api_key
-
-async def get_admin_api_key(api_key: APIKey = Depends(get_api_key)):
-    if not api_key.is_admin:
-        raise APIKeyError(detail="Admin privileges required", status_code=status.HTTP_403_FORBIDDEN)
+# get_api_key remains synchronous as it doesn't perform I/O
+def get_api_key(api_key: str = Depends(api_key_header)):
+    if api_key not in API_KEYS:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API Key",
+        )
     return api_key
 
 async def get_vm_by_machine_id(db: AsyncSession, machine_id: str) -> Optional[VMNetworkConfig]:
@@ -52,204 +49,141 @@ async def create_vm(db: AsyncSession, machine_id: str, mac_address: str, interna
     await db.refresh(vm)
     return vm
 
-async def add_port_rule(db: AsyncSession, vm: VMNetworkConfig, port_type: PortType, external_port: int, nat_rule_number: int,
-                        status: PortStatus = PortStatus.enabled, protocol: Optional[PortProtocol] = None,
-                        source_ip: Optional[str] = None, custom_description: Optional[str] = None) -> VMPortRule:
+async def add_port_rule(db: AsyncSession, vm: VMNetworkConfig, port_type: PortType, external_port: int, nat_rule_number: int, status: PortStatus = PortStatus.enabled) -> VMPortRule:
     rule = VMPortRule(
-        vm=vm,
+        vm_id=vm.id, # Ensure vm_id is used if vm object is not directly linkable before commit in async
         port_type=port_type,
         external_port=external_port,
         nat_rule_number=nat_rule_number,
-        status=status,
-        protocol=protocol,
-        source_ip=source_ip,
-        custom_description=custom_description
+        status=status
     )
     db.add(rule)
     await db.commit()
     await db.refresh(rule)
+    # If vm object was passed and relationship is set up, rule.vm = vm might be needed
+    # or ensure vm object is refreshed if rule.vm is accessed later.
+    # For now, assuming vm_id is sufficient for linking.
     return rule
 
-async def update_port_rule(db: AsyncSession, rule: VMPortRule, status: Optional[PortStatus] = None,
-                           protocol: Optional[PortProtocol] = None, source_ip: Optional[str] = None,
-                           custom_description: Optional[str] = None) -> VMPortRule:
-    if status is not None:
-        rule.status = status
-    if protocol is not None:
-        rule.protocol = protocol
-    if source_ip is not None:
-        rule.source_ip = source_ip
-    if custom_description is not None:
-        rule.custom_description = custom_description
-    
-    rule.vm.updated_at = datetime.utcnow() # Update parent VM's timestamp
-    await safe_commit(db)
-    await db.refresh(rule)
-    return rule
+async def get_port_rule_by_vm_and_type(db: AsyncSession, vm_id: int, port_type: PortType) -> Optional[VMPortRule]:
+    result = await db.execute(
+        select(VMPortRule).filter_by(vm_id=vm_id, port_type=port_type)
+    )
+    return result.scalars().first()
 
 async def set_port_status(db: AsyncSession, vm: VMNetworkConfig, port_type: PortType, status: PortStatus):
-    result = await db.execute(select(VMPortRule).filter_by(vm=vm, port_type=port_type))
-    rule = result.scalars().first()
+    # Assuming vm object has its ID populated
+    rule = await get_port_rule_by_vm_and_type(db, vm.id, port_type) # Use the new helper
     if rule:
         rule.status = status
-        rule.vm.updated_at = datetime.utcnow()
+        # To update vm.updated_at, we might need to fetch vm again or ensure it's part of the session
+        # For now, focusing on port rule. If VM's updated_at is critical, it needs explicit update.
+        # vm_instance = await db.get(VMNetworkConfig, vm.id) # Example if needed
+        # if vm_instance:
+        #     vm_instance.updated_at = datetime.utcnow()
         await db.commit()
         await db.refresh(rule)
     return rule
+    
+async def delete_port_rule_by_id(db: AsyncSession, rule_id: int):
+    rule = await db.get(VMPortRule, rule_id)
+    if rule:
+        await db.delete(rule)
+        await db.commit()
 
-async def get_vm_ports_status(db: AsyncSession, vm: VMNetworkConfig):
-    result = await db.execute(select(VMPortRule).filter_by(vm=vm))
+async def get_vm_ports_status(db: AsyncSession, vm: VMNetworkConfig) -> Dict[str, Dict[str, Any]]:
+    # Assuming vm object has its ID populated
+    result = await db.execute(select(VMPortRule).filter_by(vm_id=vm.id))
     rules = result.scalars().all()
     ports = {}
     for r in rules:
         ports[r.port_type.value] = {
             "status": r.status.value,
             "external_port": r.external_port,
-            "nat_rule_number": r.nat_rule_number,
-            "protocol": r.protocol.value if r.protocol else None, # Include protocol
-            "source_ip": r.source_ip, # Include source_ip
-            "custom_description": r.custom_description # Include custom_description
+            "nat_rule_number": r.nat_rule_number
         }
     # Ensure all port types are present
-    for p in ["ssh", "http", "https"]:
-        if p not in ports:
-            ports[p] = {
-                "status": "not_active",
-                "external_port": None,
-                "nat_rule_number": None,
-                "protocol": None,
-                "source_ip": None,
-                "custom_description": None
-            }
+    for p_type in PortType: # Iterate over Enum members
+        p_val = p_type.value
+        if p_val not in ports:
+            ports[p_val] = {"status": "not_active", "external_port": None, "nat_rule_number": None}
     return ports
 
-async def get_all_vms_status(db: AsyncSession):
+async def get_all_vms_status(db: AsyncSession) -> List[Dict[str, Any]]:
     result = await db.execute(select(VMNetworkConfig))
     vms = result.scalars().all()
-    result_list = []
-    for vm in vms:
-        ports = await get_vm_ports_status(db, vm)
-        result_list.append({
-            "machine_id": vm.machine_id,
-            "internal_ip": vm.internal_ip,
-            "ports": ports
+    response_data = []
+    for vm_instance in vms:
+        ports_status = await get_vm_ports_status(db, vm_instance)
+        response_data.append({
+            "machine_id": vm_instance.machine_id,
+            "internal_ip": vm_instance.internal_ip,
+            "ports": ports_status
         })
-    return result_list
+    return response_data
 
-async def get_active_ip_pools(db: AsyncSession) -> List[IPPool]:
-    result = await db.execute(select(IPPool).filter(IPPool.is_active == 1))
-    return result.scalars().all()
+def get_configured_ip_range() -> Tuple[str, int, int]:
+    # Example: get from environment or config file
+    import os
+    base = os.getenv("VYOS_LAN_BASE", "192.168.64.")
+    start = int(os.getenv("VYOS_LAN_START", 100))
+    end = int(os.getenv("VYOS_LAN_END", 199))
+    return base, start, end
 
-async def get_active_port_pools(db: AsyncSession) -> List[PortPool]:
-    result = await db.execute(select(PortPool).filter(PortPool.is_active == 1))
-    return result.scalars().all()
+def get_configured_port_range() -> Tuple[int, int]:
+    import os
+    start = int(os.getenv("VYOS_PORT_START", 32000))
+    end = int(os.getenv("VYOS_PORT_END", 33000))
+    return start, end
 
-async def find_next_available_ip(db: AsyncSession, ip_range_override: Optional[Dict[str, Any]] = None) -> str:
+async def find_next_available_ip(db: AsyncSession, ip_range: Dict[str, Any] = None) -> str:
     """
-    Find the next available IP. Prioritize override, then active pools, then environment variables.
+    Find the next available IP in the given range. If ip_range is None, use default config/env.
+    ip_range: {"base": "192.168.66.", "start": 10, "end": 50}
     """
-    used_ips_result = await db.execute(select(VMNetworkConfig.internal_ip))
-    used_ips = {ip for ip in used_ips_result.scalars().all()}
+    if ip_range:
+        base = ip_range.get("base", "192.168.64.")
+        start = int(ip_range.get("start", 100))
+        end = int(ip_range.get("end", 199))
+    else:
+        base, start, end = get_configured_ip_range() # This is sync
+    
+    result = await db.execute(select(VMNetworkConfig.internal_ip)) # Select only the column
+    used_ips = {ip[0] for ip in result.all()} # result.all() gives list of tuples
 
-    ranges_to_check = []
+    for i in range(start, end + 1):
+        ip = f"{base}{i}"
+        if ip not in used_ips:
+            return ip
+    raise ResourceAllocationError(detail=f"No available IPs in {base}{start}-{base}{end} range")
 
-    # 1. Check override range
-    if ip_range_override:
-        ranges_to_check.append((ip_range_override["base"], ip_range_override["start"], ip_range_override["end"]))
-
-    # 2. Check active IP pools from DB
-    active_pools = await get_active_ip_pools(db)
-    for pool in active_pools:
-        ranges_to_check.append((pool.base_ip, pool.start_octet, pool.end_octet))
-
-    # 3. Fallback to environment variables if no active pools or override
-    if not ranges_to_check:
-        base = os.getenv("VYOS_LAN_BASE", "192.168.64.")
-        start = int(os.getenv("VYOS_LAN_START", 100))
-        end = int(os.getenv("VYOS_LAN_END", 199))
-        ranges_to_check.append((base, start, end))
-
-    for base, start, end in ranges_to_check:
-        for i in range(start, end + 1):
-            ip = f"{base}{i}"
-            if ip not in used_ips:
-                return ip
-    raise ResourceAllocationError(detail="No available IPs in configured ranges.")
-
-async def find_next_available_port(db: AsyncSession, port_range_override: Optional[Dict[str, Any]] = None) -> int:
+async def find_next_available_port(db: AsyncSession, port_range: Dict[str, Any] = None) -> int:
     """
-    Find the next available port. Prioritize override, then active pools, then environment variables.
+    Find the next available port in the given range. If port_range is None, use default config/env.
+    port_range: {"start": 32000, "end": 33000}
     """
-    used_ports_result = await db.execute(select(VMPortRule.external_port))
-    used_ports = {port for port in used_ports_result.scalars().all()}
+    if port_range:
+        port_start = int(port_range.get("start", 32000))
+        port_end = int(port_range.get("end", 33000))
+    else:
+        port_start, port_end = get_configured_port_range() # This is sync
 
-    ranges_to_check = []
+    result = await db.execute(select(VMPortRule.external_port)) # Select only the column
+    used_ports = {port[0] for port in result.all()} # result.all() gives list of tuples
 
-    # 1. Check override range
-    if port_range_override:
-        ranges_to_check.append((port_range_override["start"], port_range_override["end"]))
-
-    # 2. Check active Port pools from DB
-    active_pools = await get_active_port_pools(db)
-    for pool in active_pools:
-        ranges_to_check.append((pool.start_port, pool.end_port))
-
-    # 3. Fallback to environment variables if no active pools or override
-    if not ranges_to_check:
-        start = int(os.getenv("VYOS_PORT_START", 32000))
-        end = int(os.getenv("VYOS_PORT_END", 33000))
-        ranges_to_check.append((start, end))
-
-    for start, end in ranges_to_check:
-        for port in range(start, end + 1):
-            if port not in used_ports:
-                return port
-    raise ResourceAllocationError(detail="No available external ports in configured ranges.")
+    for port in range(port_start, port_end + 1):
+        if port not in used_ports:
+            return port
+    raise ResourceAllocationError(detail=f"No available external ports in {port_start}-{port_end} range")
 
 async def find_next_nat_rule_number(db: AsyncSession) -> int:
-    result = await db.execute(select(VMPortRule.nat_rule_number))
-    used_rules = {rule for rule in result.scalars().all()}
+    result = await db.execute(select(VMPortRule.nat_rule_number)) # Select only the column
+    used_rules = {rule_num[0] for rule_num in result.all()} # result.all() gives list of tuples
     base = 10000
     for rule in range(base, base + 10000):
         if rule not in used_rules:
             return rule
     raise ResourceAllocationError(detail="No available NAT rule numbers")
-
-async def create_api_key(db: AsyncSession, api_key_value: str, description: Optional[str] = None, is_admin: bool = False, expires_at: Optional[datetime] = None) -> APIKey:
-    api_key = APIKey(
-        api_key=api_key_value,
-        description=description,
-        is_admin=1 if is_admin else 0,
-        created_at=datetime.utcnow(),
-        expires_at=expires_at
-    )
-    db.add(api_key)
-    await safe_commit(db)
-    await db.refresh(api_key)
-    return api_key
-
-async def get_api_key_by_value(db: AsyncSession, api_key_value: str) -> Optional[APIKey]:
-    result = await db.execute(select(APIKey).filter(APIKey.api_key == api_key_value))
-    return result.scalars().first()
-
-async def get_all_api_keys(db: AsyncSession) -> List[APIKey]:
-    result = await db.execute(select(APIKey))
-    return result.scalars().all()
-
-async def update_api_key(db: AsyncSession, api_key_obj: APIKey, description: Optional[str] = None, is_admin: Optional[bool] = None, expires_at: Optional[datetime] = None) -> APIKey:
-    if description is not None:
-        api_key_obj.description = description
-    if is_admin is not None:
-        api_key_obj.is_admin = 1 if is_admin else 0
-    if expires_at is not None:
-        api_key_obj.expires_at = expires_at
-    await safe_commit(db)
-    await db.refresh(api_key_obj)
-    return api_key_obj
-
-async def delete_api_key(db: AsyncSession, api_key_obj: APIKey):
-    await db.delete(api_key_obj)
-    await safe_commit(db)
 
 # Example error-handling wrapper for DB operations
 async def safe_commit(db: AsyncSession):
@@ -259,130 +193,40 @@ async def safe_commit(db: AsyncSession):
         await db.rollback()
         raise e
 
-# User CRUD Operations
 async def get_user_by_username(db: AsyncSession, username: str) -> Optional[User]:
     result = await db.execute(select(User).filter(User.username == username))
     return result.scalars().first()
 
-async def create_user(db: AsyncSession, username: str, password: str, roles: str = "user") -> User:
-    hashed_password = hash_password(password)
-    user = User(
+async def create_user(db: AsyncSession, username: str, password: str, roles: List[str]) -> User:
+    hashed_pass = hash_password(password) # Hash the password before storing
+    db_user = User(
         username=username,
-        hashed_password=hashed_password,
-        roles=roles,
+        hashed_password=hashed_pass,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
-    db.add(user)
-    await safe_commit(db)
-    await db.refresh(user)
-    return user
-
-async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
-    result = await db.execute(select(User).filter(User.id == user_id))
-    return result.scalars().first()
+    db_user.roles = roles # Use the setter for roles
+    db.add(db_user)
+    await db.commit()
+    await db.refresh(db_user)
+    return db_user
 
 async def get_all_users(db: AsyncSession) -> List[User]:
     result = await db.execute(select(User))
     return result.scalars().all()
 
-async def update_user(db: AsyncSession, user: User, username: Optional[str] = None, password: Optional[str] = None, roles: Optional[str] = None) -> User:
-    if username is not None:
-        user.username = username
-    if password is not None:
-        user.hashed_password = hash_password(password)
-    if roles is not None:
-        user.roles = roles
-    user.updated_at = datetime.utcnow()
-    await safe_commit(db)
-    await db.refresh(user)
-    return user
+async def update_user(db: AsyncSession, user_to_update: User, username_new: Optional[str] = None, password_new: Optional[str] = None, roles_new: Optional[List[str]] = None) -> User:
+    if username_new is not None:
+        user_to_update.username = username_new
+    if password_new is not None:
+        user_to_update.hashed_password = hash_password(password_new)
+    if roles_new is not None:
+        user_to_update.roles = roles_new # Use the setter
+    user_to_update.updated_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(user_to_update)
+    return user_to_update
 
-async def delete_user(db: AsyncSession, user: User):
-    await db.delete(user)
-    await safe_commit(db)
-
-# IP Pool CRUD
-async def create_ip_pool(db: AsyncSession, name: str, base_ip: str, start_octet: int, end_octet: int, is_active: bool = True) -> IPPool:
-    ip_pool = IPPool(
-        name=name,
-        base_ip=base_ip,
-        start_octet=start_octet,
-        end_octet=end_octet,
-        is_active=1 if is_active else 0,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
-    db.add(ip_pool)
-    await safe_commit(db)
-    await db.refresh(ip_pool)
-    return ip_pool
-
-async def get_ip_pool_by_name(db: AsyncSession, name: str) -> Optional[IPPool]:
-    result = await db.execute(select(IPPool).filter(IPPool.name == name))
-    return result.scalars().first()
-
-async def get_all_ip_pools(db: AsyncSession) -> List[IPPool]:
-    result = await db.execute(select(IPPool))
-    return result.scalars().all()
-
-async def update_ip_pool(db: AsyncSession, ip_pool_obj: IPPool, name: Optional[str] = None, base_ip: Optional[str] = None, start_octet: Optional[int] = None, end_octet: Optional[int] = None, is_active: Optional[bool] = None) -> IPPool:
-    if name is not None:
-        ip_pool_obj.name = name
-    if base_ip is not None:
-        ip_pool_obj.base_ip = base_ip
-    if start_octet is not None:
-        ip_pool_obj.start_octet = start_octet
-    if end_octet is not None:
-        ip_pool_obj.end_octet = end_octet
-    if is_active is not None:
-        ip_pool_obj.is_active = 1 if is_active else 0
-    ip_pool_obj.updated_at = datetime.utcnow()
-    await safe_commit(db)
-    await db.refresh(ip_pool_obj)
-    return ip_pool_obj
-
-async def delete_ip_pool(db: AsyncSession, ip_pool_obj: IPPool):
-    await db.delete(ip_pool_obj)
-    await safe_commit(db)
-
-# Port Pool CRUD
-async def create_port_pool(db: AsyncSession, name: str, start_port: int, end_port: int, is_active: bool = True) -> PortPool:
-    port_pool = PortPool(
-        name=name,
-        start_port=start_port,
-        end_port=end_port,
-        is_active=1 if is_active else 0,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
-    db.add(port_pool)
-    await safe_commit(db)
-    await db.refresh(port_pool)
-    return port_pool
-
-async def get_port_pool_by_name(db: AsyncSession, name: str) -> Optional[PortPool]:
-    result = await db.execute(select(PortPool).filter(PortPool.name == name))
-    return result.scalars().first()
-
-async def get_all_port_pools(db: AsyncSession) -> List[PortPool]:
-    result = await db.execute(select(PortPool))
-    return result.scalars().all()
-
-async def update_port_pool(db: AsyncSession, port_pool_obj: PortPool, name: Optional[str] = None, start_port: Optional[int] = None, end_port: Optional[int] = None, is_active: Optional[bool] = None) -> PortPool:
-    if name is not None:
-        port_pool_obj.name = name
-    if start_port is not None:
-        port_pool_obj.start_port = start_port
-    if end_port is not None:
-        port_pool_obj.end_port = end_port
-    if is_active is not None:
-        port_pool_obj.is_active = 1 if is_active else 0
-    port_pool_obj.updated_at = datetime.utcnow()
-    await safe_commit(db)
-    await db.refresh(port_pool_obj)
-    return port_pool_obj
-
-async def delete_port_pool(db: AsyncSession, port_pool_obj: PortPool):
-    await db.delete(port_pool_obj)
-    await safe_commit(db)
+async def delete_user(db: AsyncSession, user_to_delete: User):
+    await db.delete(user_to_delete)
+    await db.commit()

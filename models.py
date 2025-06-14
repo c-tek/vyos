@@ -1,6 +1,8 @@
 from sqlalchemy import Column, Integer, String, Enum, ForeignKey, DateTime
 from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.ext.hybrid import hybrid_property
 import enum
+from typing import List
 
 Base = declarative_base()
 
@@ -57,9 +59,19 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    roles = Column(String, default="user") # Comma-separated roles, e.g., "user,admin"
+    _roles = Column("roles", String, default="user") # Renamed to _roles
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
+
+    @hybrid_property
+    def roles(self) -> List[str]:
+        if self._roles:
+            return [role.strip() for role in self._roles.split(',') if role.strip()]
+        return []
+
+    @roles.setter
+    def roles(self, roles_list: List[str]):
+        self._roles = ",".join(role.strip() for role in roles_list if role.strip())
 
 class IPPool(Base):
     __tablename__ = "ip_pools"

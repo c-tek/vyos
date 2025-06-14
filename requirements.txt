@@ -1,11 +1,10 @@
 fastapi
 uvicorn
-sqlalchemy[asyncio]
+sqlalchemy
 pydantic
-httpx
+requests
 pyjwt
 slowapi
+aiosqlite
+httpx
 passlib[bcrypt]
-python-multipart
-alembic
-prometheus_client

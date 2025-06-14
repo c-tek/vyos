@@ -1,10 +1,20 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy import create_engine  # Added this import
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 import os
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./vyos.db")
+# Database setup
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./vyos.db")  # Standard sync URL
+ASYNC_DATABASE_URL = os.getenv("ASYNC_DATABASE_URL", "sqlite+aiosqlite:///./vyos_async.db")  # Async URL
 
-engine = create_async_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+async_engine = create_async_engine(ASYNC_DATABASE_URL, connect_args={"check_same_thread": False})  # Async engine
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+AsyncSessionLocal = sessionmaker(
+    autocommit=False, autoflush=False, bind=async_engine, class_=AsyncSession
+)  # Async session maker
 
 # VyOS API config
 def get_vyos_config():
@@ -14,3 +24,8 @@ def get_vyos_config():
         "VYOS_API_KEY_ID": os.getenv("VYOS_API_KEY_ID", "netauto"),
         "VYOS_API_KEY": os.getenv("VYOS_API_KEY", "changeme"),
     }
+
+# New async DB session dependency
+async def get_async_db():
+    async with AsyncSessionLocal() as session:
+        yield session

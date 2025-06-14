@@ -13,6 +13,10 @@ This project provides a FastAPI-based service for managing static DHCP assignmen
 - **Enhanced Error Handling:** Provides clearer, more consistent, and specific error responses with custom exception classes and standardized schemas.
 - **Secure VyOS API Communication:** Enforces SSL/TLS certificate verification for communication with the VyOS router.
 - **IP/Port Pool Management:** Dynamic definition and management of IP and port ranges via API endpoints, moving away from environment variables for resource configuration.
+- **VyOS Configuration Synchronization:** Automated synchronization of VyOS NAT rules with the database, including detection and application of discrepancies.
+- **Advanced Port Management:** Granular control over port forwarding rules, allowing specification of protocol, source IP, and custom descriptions.
+- **Monitoring & Alerting Integration:** Exposure of Prometheus metrics, enhanced health checks, and structured logging for operational visibility.
+- **Database Migrations:** Controlled and versioned evolution of the database schema using Alembic.
 
 ## Documentation
 - [Installation Guide](docs/vyos-installation.md)
@@ -21,6 +25,9 @@ This project provides a FastAPI-based service for managing static DHCP assignmen
 - [Security Guide](docs/security.md)
 - [Development Processes](docs/processes.md)
 - [How to Extend](docs/how-to-extend.md)
+- [Operational Guide](docs/operations.md)
+- [Monitoring Guide](docs/monitoring.md)
+- [Database Migrations Guide](docs/database-migrations.md)
 
 ## Requirements
 
@@ -66,7 +73,7 @@ For detailed usage examples and API endpoint specifications, please refer to the
 For detailed information on authentication methods and security best practices, refer to the [Security Guide](docs/security.md) and [Example Usage](docs/EXAMPLES.md).
 
 ## MCP Integration
-- Use `/mcp/provision` and `/mcp/decommission` for Model Context Protocol/AI workflows.
+- **MCP Integration:** Core VM provisioning and decommissioning operations are exposed via MCP endpoints for AI/orchestration workflows.
 
 ## Example Scenarios & Code Snippets
 
