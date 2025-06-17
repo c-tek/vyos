@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Enum, ForeignKey, DateTime, UniqueConstraint, Boolean, JSON, Text # Added Boolean, JSON, Text
+from sqlalchemy import Column, Integer, String, Enum, ForeignKey, DateTime, UniqueConstraint, Boolean, JSON, Text, BigInteger, Index # Added BigInteger, Index
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.ext.hybrid import hybrid_property
 import enum
@@ -130,6 +130,19 @@ class SimplePortRangePool(Base):
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
 
+class Subnet(Base):
+    __tablename__ = "subnets"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, nullable=False)
+    cidr = Column(String, unique=True, nullable=False)  # e.g., "192.168.10.0/24"
+    gateway = Column(String, nullable=True)
+    vlan_id = Column(Integer, nullable=True)
+    is_isolated = Column(Boolean, default=True)  # If true, hosts in this subnet can't see other subnets
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    dhcp_pools = relationship("DHCPPool", back_populates="subnet")
+
 class DHCPPool(Base):
     __tablename__ = "dhcp_pools"
     id = Column(Integer, primary_key=True)
@@ -145,6 +158,8 @@ class DHCPPool(Base):
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
     vm_network_configs = relationship("VMNetworkConfig", back_populates="dhcp_pool") # Relationship to VMNetworkConfig
+    subnet_id = Column(Integer, ForeignKey("subnets.id"), nullable=True)
+    subnet = relationship("Subnet", back_populates="dhcp_pools")
 
 class FirewallAction(enum.Enum):
     accept = "accept"
@@ -370,6 +385,106 @@ class HADRConfig(Base):
     snapshot_info = Column(JSON, nullable=True)  # Metadata about last config snapshot
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class StaticDHCPAssignment(Base):
+    __tablename__ = "static_dhcp_assignments"
+    id = Column(Integer, primary_key=True)
+    subnet_id = Column(Integer, ForeignKey("subnets.id"), nullable=False)
+    mac_address = Column(String, nullable=False)
+    ip_address = Column(String, nullable=False)
+    hostname = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    subnet = relationship("Subnet")
+
+class SubnetPortMapping(Base):
+    __tablename__ = "subnet_port_mappings"
+    id = Column(Integer, primary_key=True)
+    subnet_id = Column(Integer, ForeignKey("subnets.id"), nullable=False)
+    external_ip = Column(String, nullable=False)
+    external_port = Column(Integer, nullable=False)
+    internal_ip = Column(String, nullable=False)
+    internal_port = Column(Integer, nullable=False)
+    protocol = Column(Enum(PortProtocol), nullable=False)
+    description = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    subnet = relationship("Subnet")
+    
+    __table_args__ = (
+        UniqueConstraint('external_ip', 'external_port', 'protocol', name='_subnet_port_mapping_uc'),
+    )
+
+class SubnetConnectionRule(Base):
+    __tablename__ = "subnet_connection_rules"
+    id = Column(Integer, primary_key=True)
+    source_subnet_id = Column(Integer, ForeignKey("subnets.id"), nullable=False)
+    destination_subnet_id = Column(Integer, ForeignKey("subnets.id"), nullable=False)
+    protocol = Column(Enum(FirewallRuleProtocol), nullable=True, default=FirewallRuleProtocol.all)
+    source_port = Column(String, nullable=True)  # Can be a port number or range (e.g., "80" or "8000-8080")
+    destination_port = Column(String, nullable=True)  # Can be a port number or range
+    description = Column(String, nullable=True)
+    is_enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    source_subnet = relationship("Subnet", foreign_keys=[source_subnet_id])
+    destination_subnet = relationship("Subnet", foreign_keys=[destination_subnet_id])
+    
+    __table_args__ = (
+        UniqueConstraint('source_subnet_id', 'destination_subnet_id', 'protocol', 'source_port', 'destination_port', name='_subnet_connection_rule_uc'),
+    )
+
+class SubnetTrafficMetrics(Base):
+    __tablename__ = "subnet_traffic_metrics"
+    id = Column(Integer, primary_key=True)
+    subnet_id = Column(Integer, ForeignKey("subnets.id"), nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+    rx_bytes = Column(BigInteger, default=0)  # Received bytes
+    tx_bytes = Column(BigInteger, default=0)  # Transmitted bytes
+    rx_packets = Column(BigInteger, default=0)  # Received packets
+    tx_packets = Column(BigInteger, default=0)  # Transmitted packets
+    active_hosts = Column(Integer, default=0)  # Number of active hosts in the subnet
+    
+    subnet = relationship("Subnet")
+    
+    # Add index for efficient time-series queries
+    __table_args__ = (
+        Index('idx_subnet_metrics_subnet_time', 'subnet_id', 'timestamp'),
+    )
+
+class DHCPTemplate(Base):
+    __tablename__ = "dhcp_templates"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, nullable=False)
+    description = Column(String, nullable=True)
+    pattern = Column(String, nullable=False)  # IP pattern with placeholders, e.g., "10.0.{subnet}.{host}"
+    start_range = Column(Integer, nullable=True)  # Optional start range for host part
+    end_range = Column(Integer, nullable=True)    # Optional end range for host part
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_by = Column(String, nullable=True)    # Username who created the template
+
+class DHCPTemplateReservation(Base):
+    __tablename__ = "dhcp_template_reservations"
+    id = Column(Integer, primary_key=True)
+    template_id = Column(Integer, ForeignKey("dhcp_templates.id"), nullable=False)
+    subnet_id = Column(Integer, ForeignKey("subnets.id"), nullable=False)
+    hostname_pattern = Column(String, nullable=False)  # E.g., "web-{counter}"
+    start_counter = Column(Integer, default=1)         # Start counting from this value
+    current_counter = Column(Integer, default=1)       # Current counter value
+    num_reservations = Column(Integer, default=0)      # How many IPs are reserved from this template
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    template = relationship("DHCPTemplate")
+    subnet = relationship("Subnet")
+    
+    __table_args__ = (
+        UniqueConstraint('template_id', 'subnet_id', name='_template_subnet_uc'),
+    )
 
 def create_db_tables(engine):
     Base.metadata.create_all(bind=engine)

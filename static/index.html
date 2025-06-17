@@ -15,7 +15,100 @@
         .btn:disabled { background: #ccc; }
         .input { padding: 0.5em; border: 1px solid #ccc; border-radius: 4px; }
         .result { margin-top: 1em; font-size: 0.95em; color: #333; }
+        
+        /* Add CSS for tables and charts */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        .data-table th, .data-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        .data-table th {
+            background-color: #f2f2f2;
+        }
+        
+        .data-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 20px;
+            color: #888;
+            font-style: italic;
+        }
+        
+        /* Additional styles for bulk operations */
+        .preview {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        .preview pre {
+            margin: 0;
+            white-space: pre-wrap;
+        }
+        
+        #bulk-vm-list {
+            width: 100%;
+            font-family: monospace;
+        }
+        
+        /* Additional styles for DHCP templates */
+        code {
+            font-family: monospace;
+            background-color: #f0f0f0;
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-small {
+            padding: 2px 6px;
+            font-size: 12px;
+        }
+        
+        header {
+            background: #2980b9;
+            color: #fff;
+            padding: 1em;
+            border-radius: 8px;
+            margin-bottom: 2em;
+        }
+        
+        header h1 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+        
+        header nav {
+            margin-top: 0.5em;
+        }
+        
+        header nav a {
+            color: #fff;
+            text-decoration: none;
+            margin-right: 1em;
+        }
+        
+        header nav a.active {
+            text-decoration: underline;
+        }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
     <script>
         async function fetchStatus() {
             const res = await fetch('/v1/status');
@@ -174,6 +267,214 @@
             }
             fetchIntegrations();
         }
+        async function fetchVMs() {
+            const res = await fetch('/v1/vms/status');
+            const data = await res.json();
+            document.getElementById('vms-result').textContent = JSON.stringify(data, null, 2);
+        }
+        async function provisionVM() {
+            const payload = {
+                vm_name: document.getElementById('vm-name').value,
+                mac_address: document.getElementById('vm-mac').value
+            };
+            const res = await fetch('/v1/vms/provision', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            document.getElementById('vm-provision-result').textContent = JSON.stringify(data, null, 2);
+            fetchVMs();
+        }
+        async function decommissionVM() {
+            const vmName = document.getElementById('vm-decom-name').value;
+            const res = await fetch(`/v1/vms/${vmName}`, { method: 'DELETE' });
+            if (res.status === 204) {
+                document.getElementById('vm-decom-result').textContent = 'VM decommissioned.';
+            } else {
+                const data = await res.json();
+                document.getElementById('vm-decom-result').textContent = 'Error: ' + (data.detail || JSON.stringify(data));
+            }
+            fetchVMs();
+        }
+        async function fetchStaticRoutes() {
+            const res = await fetch('/v1/static-routes/');
+            const data = await res.json();
+            document.getElementById('routes-result').textContent = JSON.stringify(data, null, 2);
+        }
+        async function addStaticRoute() {
+            const payload = {
+                destination: document.getElementById('route-dest').value,
+                next_hop: document.getElementById('route-nexthop').value,
+                description: document.getElementById('route-desc').value,
+                distance: document.getElementById('route-distance').value ? parseInt(document.getElementById('route-distance').value) : 1
+            };
+            const res = await fetch('/v1/static-routes/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            document.getElementById('route-add-result').textContent = JSON.stringify(data, null, 2);
+            fetchStaticRoutes();
+        }
+        async function deleteStaticRoute() {
+            const routeId = document.getElementById('route-id-delete').value;
+            const res = await fetch(`/v1/static-routes/${routeId}`, { method: 'DELETE' });
+            if (res.status === 204) {
+                document.getElementById('route-delete-result').textContent = 'Route deleted.';
+            } else {
+                const data = await res.json();
+                document.getElementById('route-delete-result').textContent = 'Error: ' + (data.detail || JSON.stringify(data));
+            }
+            fetchStaticRoutes();
+        }
+        async function fetchFirewallPolicies() {
+            const res = await fetch('/v1/firewall/policies/');
+            const data = await res.json();
+            document.getElementById('firewall-policies-result').textContent = JSON.stringify(data, null, 2);
+        }
+        async function addFirewallPolicy() {
+            const payload = {
+                name: document.getElementById('fw-policy-name').value,
+                default_action: document.getElementById('fw-policy-action').value,
+                description: document.getElementById('fw-policy-desc').value
+            };
+            const res = await fetch('/v1/firewall/policies/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            document.getElementById('fw-policy-add-result').textContent = JSON.stringify(data, null, 2);
+            fetchFirewallPolicies();
+        }
+        async function deleteFirewallPolicy() {
+            const policyId = document.getElementById('fw-policy-id-delete').value;
+            const res = await fetch(`/v1/firewall/policies/${policyId}`, { method: 'DELETE' });
+            if (res.status === 204) {
+                document.getElementById('fw-policy-delete-result').textContent = 'Policy deleted.';
+            } else {
+                const data = await res.json();
+                document.getElementById('fw-policy-delete-result').textContent = 'Error: ' + (data.detail || JSON.stringify(data));
+            }
+            fetchFirewallPolicies();
+        }
+        async function fetchSubnets() {
+            const res = await fetch('/v1/subnets/');
+            const data = await res.json();
+            document.getElementById('subnets-result').textContent = JSON.stringify(data, null, 2);
+            
+            // Update subnet dropdowns
+            const subnetFilters = document.querySelectorAll('#static-dhcp-subnet-filter, #port-mapping-subnet-filter');
+            const subnetSelects = document.querySelectorAll('#static-dhcp-subnet, #port-mapping-subnet');
+            
+            subnetFilters.forEach(select => {
+                // Keep the first option (All Subnets)
+                select.innerHTML = '<option value="">All Subnets</option>';
+                // Add subnet options
+                data.forEach(subnet => {
+                    const option = document.createElement('option');
+                    option.value = subnet.id;
+                    option.textContent = `${subnet.name} (${subnet.cidr})`;
+                    select.appendChild(option);
+                });
+            });
+            
+            subnetSelects.forEach(select => {
+                // Keep the first option (Select Subnet)
+                select.innerHTML = '<option value="">Select Subnet</option>';
+                // Add subnet options
+                data.forEach(subnet => {
+                    const option = document.createElement('option');
+                    option.value = subnet.id;
+                    option.textContent = `${subnet.name} (${subnet.cidr})`;
+                    select.appendChild(option);
+                });
+            });
+        }
+        
+        async function addSubnet() {
+            const payload = {
+                name: document.getElementById('subnet-name').value,
+                cidr: document.getElementById('subnet-cidr').value,
+                gateway: document.getElementById('subnet-gateway').value || null,
+                vlan_id: document.getElementById('subnet-vlan').value ? parseInt(document.getElementById('subnet-vlan').value) : null,
+                is_isolated: document.getElementById('subnet-isolated').checked
+            };
+            
+            const res = await fetch('/v1/subnets/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const data = await res.json();
+            document.getElementById('subnet-add-result').textContent = JSON.stringify(data, null, 2);
+            fetchSubnets();
+        }
+        
+        // Static DHCP Assignments
+        async function fetchStaticDHCP() {
+            const subnetId = document.getElementById('static-dhcp-subnet-filter').value;
+            const url = subnetId ? `/v1/static-dhcp/?subnet_id=${subnetId}` : '/v1/static-dhcp/';
+            
+            const res = await fetch(url);
+            const data = await res.json();
+            document.getElementById('static-dhcp-result').textContent = JSON.stringify(data, null, 2);
+        }
+        
+        async function addStaticDHCP() {
+            const payload = {
+                subnet_id: parseInt(document.getElementById('static-dhcp-subnet').value),
+                mac_address: document.getElementById('static-dhcp-mac').value,
+                ip_address: document.getElementById('static-dhcp-ip').value,
+                hostname: document.getElementById('static-dhcp-hostname').value || null
+            };
+            
+            const res = await fetch('/v1/static-dhcp/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const data = await res.json();
+            document.getElementById('static-dhcp-add-result').textContent = JSON.stringify(data, null, 2);
+            fetchStaticDHCP();
+        }
+        
+        // Port Mappings
+        async function fetchPortMappings() {
+            const subnetId = document.getElementById('port-mapping-subnet-filter').value;
+            const url = subnetId ? `/v1/port-mappings/?subnet_id=${subnetId}` : '/v1/port-mappings/';
+            
+            const res = await fetch(url);
+            const data = await res.json();
+            document.getElementById('port-mappings-result').textContent = JSON.stringify(data, null, 2);
+        }
+        
+        async function addPortMapping() {
+            const payload = {
+                subnet_id: parseInt(document.getElementById('port-mapping-subnet').value),
+                external_ip: document.getElementById('port-mapping-external-ip').value,
+                external_port: parseInt(document.getElementById('port-mapping-external-port').value),
+                internal_ip: document.getElementById('port-mapping-internal-ip').value,
+                internal_port: parseInt(document.getElementById('port-mapping-internal-port').value),
+                protocol: document.getElementById('port-mapping-protocol').value,
+                description: document.getElementById('port-mapping-description').value || null
+            };
+            
+            const res = await fetch('/v1/port-mappings/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const data = await res.json();
+            document.getElementById('port-mapping-add-result').textContent = JSON.stringify(data, null, 2);
+            fetchPortMappings();
+        }
+        
         window.onload = function() {
             fetchStatus();
             fetchBackupList();
@@ -183,10 +484,716 @@
             fetchScheduledTasks();
             fetchSecrets();
             fetchIntegrations();
+            fetchVMs();
+            fetchStaticRoutes();
+            fetchFirewallPolicies();
+            fetchSubnets();
+            fetchStaticDHCP();
+            fetchPortMappings();
+            fetchTemplates();
+            fetchTemplateReservations();
+        };
+        
+        // Initialize chart variables
+        let trafficChart = null;
+        
+        // Format bytes to human-readable format
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+            
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+        
+        // Format date for display
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+        
+        // Update traffic summary table
+        async function updateTrafficSummary() {
+            const subnetId = document.getElementById('traffic-subnet-filter').value;
+            const days = document.getElementById('traffic-time-period').value;
+            
+            let url = `/v1/analytics/subnet-traffic/summary?days=${days}`;
+            if (subnetId) {
+                url += `&subnet_id=${subnetId}`;
+            }
+            
+            const res = await fetch(url);
+            const data = await res.json();
+            
+            let html = '<table class="data-table"><thead><tr>' +
+                '<th>Subnet</th>' +
+                '<th>Total Received</th>' +
+                '<th>Total Transmitted</th>' +
+                '<th>Avg Received/hr</th>' +
+                '<th>Avg Transmitted/hr</th>' +
+                '<th>Peak Received</th>' +
+                '<th>Peak Time</th>' +
+                '<th>Avg Active Hosts</th>' +
+                '</tr></thead><tbody>';
+                
+            if (data.length === 0) {
+                html += '<tr><td colspan="8" class="no-data">No traffic data available</td></tr>';
+            } else {
+                data.forEach(summary => {
+                    html += `<tr>
+                        <td>${summary.subnet_name} (${summary.subnet_cidr})</td>
+                        <td>${formatBytes(summary.total_rx_bytes)}</td>
+                        <td>${formatBytes(summary.total_tx_bytes)}</td>
+                        <td>${formatBytes(summary.avg_rx_bytes_per_hour)}</td>
+                        <td>${formatBytes(summary.avg_tx_bytes_per_hour)}</td>
+                        <td>${formatBytes(summary.peak_rx_bytes)}</td>
+                        <td>${summary.peak_time ? formatDate(summary.peak_time) : 'N/A'}</td>
+                        <td>${summary.avg_active_hosts.toFixed(1)} (max: ${summary.max_active_hosts})</td>
+                    </tr>`;
+                });
+            }
+            
+            html += '</tbody></table>';
+            document.getElementById('traffic-summary-container').innerHTML = html;
+        }
+        
+        // Update traffic chart
+        async function updateTrafficChart() {
+            const subnetId = document.getElementById('traffic-subnet-filter').value;
+            const days = document.getElementById('traffic-time-period').value;
+            const metric = document.getElementById('traffic-metric').value;
+            const interval = document.getElementById('traffic-interval').value;
+            
+            let url = `/v1/analytics/subnet-traffic/timeseries?metric=${metric}&interval=${interval}&days=${days}`;
+            if (subnetId) {
+                url += `&subnet_id=${subnetId}`;
+            }
+            
+            const res = await fetch(url);
+            const data = await res.json();
+            
+            const chartContainer = document.getElementById('traffic-chart-container');
+            
+            // Destroy existing chart if it exists
+            if (trafficChart) {
+                trafficChart.destroy();
+            }
+            
+            // If no data, show message
+            if (data.length === 0) {
+                chartContainer.innerHTML = '<div class="no-data">No traffic data available</div>';
+                return;
+            }
+            
+            // Prepare chart data
+            const datasets = data.map(series => {
+                // Generate a deterministic color based on subnet ID
+                const hue = (series.subnet_id * 137) % 360;
+                const color = `hsl(${hue}, 70%, 60%)`;
+                
+                return {
+                    label: `${series.subnet_name} - ${getMetricLabel(metric)}`,
+                    data: series.data.map(point => ({
+                        x: new Date(point.timestamp),
+                        y: metric === 'active_hosts' ? point.value : point.value / (1024 * 1024) // Convert to MB
+                    })),
+                    borderColor: color,
+                    backgroundColor: color + '30',
+                    tension: 0.2,
+                    fill: true
+                };
+            });
+            
+            // Create a canvas for the chart
+            chartContainer.innerHTML = '<canvas id="trafficChart"></canvas>';
+            const ctx = document.getElementById('trafficChart').getContext('2d');
+            
+            // Create the chart
+            trafficChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: interval === 'hourly' ? 'hour' : 'day'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: getYAxisLabel(metric)
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `${getMetricLabel(metric)} over time (${interval})`
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw.y;
+                                    if (metric === 'active_hosts') {
+                                        return `${context.dataset.label}: ${value.toFixed(1)} hosts`;
+                                    } else {
+                                        return `${context.dataset.label}: ${value.toFixed(2)} MB`;
+                                    }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function getMetricLabel(metric) {
+            switch(metric) {
+                case 'rx_bytes': return 'Received Data';
+                case 'tx_bytes': return 'Transmitted Data';
+                case 'active_hosts': return 'Active Hosts';
+                default: return metric;
+            }
+        }
+        
+        function getYAxisLabel(metric) {
+            switch(metric) {
+                case 'rx_bytes': return 'Received Data (MB)';
+                case 'tx_bytes': return 'Transmitted Data (MB)';
+                case 'active_hosts': return 'Number of Hosts';
+                default: return '';
+            }
+        }
+        
+        // Update all traffic charts and tables
+        async function updateTrafficCharts() {
+            await updateTrafficSummary();
+            await updateTrafficChart();
+        }
+        
+        // Update subnet dropdowns for traffic analytics when subnets are loaded
+        const originalFetchSubnets2 = fetchSubnets;
+        fetchSubnets = async function() {
+            await originalFetchSubnets2();
+            
+            // Now update the traffic analytics dropdown too
+            const trafficSubnetFilter = document.getElementById('traffic-subnet-filter');
+            
+            if (trafficSubnetFilter) {
+                // Get the subnet options from one of the existing dropdowns
+                const subnetOptions = Array.from(document.getElementById('static-dhcp-subnet').options)
+                    .filter(option => option.value !== "");
+                
+                // Update the filter (keep the first "All" option)
+                while (trafficSubnetFilter.options.length > 1) {
+                    trafficSubnetFilter.remove(1);
+                }
+                
+                // Add subnet options
+                subnetOptions.forEach(option => {
+                    trafficSubnetFilter.add(new Option(option.text, option.value));
+                });
+            }
+            
+            // Initial load of traffic data
+            updateTrafficCharts();
+        };
+        
+        // Function to parse VM list from textarea
+        function parseVMList() {
+            const vmListText = document.getElementById('bulk-vm-list').value.trim();
+            if (!vmListText) {
+                return [];
+            }
+            
+            const lines = vmListText.split('\n');
+            const vms = [];
+            
+            for (const line of lines) {
+                if (!line.trim()) continue;
+                
+                const parts = line.split(',').map(part => part.trim());
+                const vm = {
+                    machine_id: parts[0]
+                };
+                
+                if (parts.length > 1 && parts[1]) {
+                    vm.hostname = parts[1];
+                }
+                
+                if (parts.length > 2 && parts[2]) {
+                    vm.internal_ip = parts[2];
+                }
+                
+                vms.push(vm);
+            }
+            
+            return vms;
+        }
+        
+        // Function to preview the bulk assignment
+        function previewBulkAssignment() {
+            const subnetId = document.getElementById('bulk-vm-subnet').value;
+            if (!subnetId) {
+                alert("Please select a subnet");
+                return;
+            }
+            
+            const vms = parseVMList();
+            if (vms.length === 0) {
+                alert("Please enter at least one VM");
+                return;
+            }
+            
+            const createStaticDHCP = document.getElementById('bulk-vm-static-dhcp').checked;
+            
+            const payload = {
+                subnet_id: parseInt(subnetId),
+                vms: vms,
+                create_static_dhcp: createStaticDHCP
+            };
+            
+            document.getElementById('bulk-vm-preview').style.display = 'block';
+            document.getElementById('bulk-vm-preview-content').textContent = JSON.stringify(payload, null, 2);
+        }
+        
+        // Function to submit the bulk assignment
+        async function submitBulkAssignment() {
+            const subnetId = document.getElementById('bulk-vm-subnet').value;
+            if (!subnetId) {
+                alert("Please select a subnet");
+                return;
+            }
+            
+            const vms = parseVMList();
+            if (vms.length === 0) {
+                alert("Please enter at least one VM");
+                return;
+            }
+            
+            const createStaticDHCP = document.getElementById('bulk-vm-static-dhcp').checked;
+            
+            const payload = {
+                subnet_id: parseInt(subnetId),
+                vms: vms,
+                create_static_dhcp: createStaticDHCP
+            };
+            
+            try {
+                const res = await fetch('/v1/bulk/vm-subnet-assignment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await res.json();
+                
+                // Show results
+                document.getElementById('bulk-vm-result').style.display = 'block';
+                
+                // Update summary
+                document.getElementById('bulk-vm-summary').innerHTML = `
+                    <p>Assignment to subnet <strong>${data.subnet_name}</strong> (${data.subnet_cidr})</p>
+                    <p>Total VMs: ${data.total_requested} | 
+                       Successful: ${data.total_successful} | 
+                       Failed: ${data.total_failed}</p>
+                `;
+                
+                // Show successful assignments
+                const successTable = document.getElementById('bulk-vm-success-table').querySelector('tbody');
+                successTable.innerHTML = '';
+                
+                if (data.successful.length > 0) {
+                    data.successful.forEach(vm => {
+                        const row = successTable.insertRow();
+                        row.insertCell(0).textContent = vm.machine_id;
+                        row.insertCell(1).textContent = vm.hostname || '-';
+                        row.insertCell(2).textContent = vm.mac_address;
+                        row.insertCell(3).textContent = vm.internal_ip;
+                    });
+                    document.getElementById('bulk-vm-successful').style.display = 'block';
+                } else {
+                    document.getElementById('bulk-vm-successful').style.display = 'none';
+                }
+                
+                // Show failed assignments
+                const failedTable = document.getElementById('bulk-vm-failed-table').querySelector('tbody');
+                failedTable.innerHTML = '';
+                
+                if (data.failed.length > 0) {
+                    data.failed.forEach(vm => {
+                        const row = failedTable.insertRow();
+                        row.insertCell(0).textContent = vm.machine_id;
+                        row.insertCell(1).textContent = vm.error;
+                    });
+                    document.getElementById('bulk-vm-failed').style.display = 'block';
+                } else {
+                    document.getElementById('bulk-vm-failed').style.display = 'none';
+                }
+                
+            } catch (error) {
+                alert(`Error submitting bulk assignment: ${error.message}`);
+            }
+        }
+        
+        // Update subnet dropdown for bulk VM assignment when subnets are loaded
+        const originalFetchSubnets3 = fetchSubnets;
+        fetchSubnets = async function() {
+            await originalFetchSubnets3();
+            
+            // Update the bulk VM subnet dropdown
+            const bulkVmSubnet = document.getElementById('bulk-vm-subnet');
+            
+            if (bulkVmSubnet) {
+                // Get the subnet options from one of the existing dropdowns
+                const subnetOptions = Array.from(document.getElementById('static-dhcp-subnet').options)
+                    .filter(option => option.value !== "");
+                
+                // Update the dropdown (keep the first "Select" option)
+                while (bulkVmSubnet.options.length > 1) {
+                    bulkVmSubnet.remove(1);
+                }
+                
+                // Add subnet options
+                subnetOptions.forEach(option => {
+                    bulkVmSubnet.add(new Option(option.text, option.value));
+                });
+            }
+        };
+        
+        // DHCP Templates Management
+        async function fetchTemplates() {
+            try {
+                const res = await fetch('/v1/dhcp-templates/');
+                const templates = await res.json();
+                
+                const templateList = document.getElementById('template-list');
+                
+                if (templates.length === 0) {
+                    templateList.innerHTML = '<p>No templates defined</p>';
+                    return;
+                }
+                
+                let html = '<table class="data-table"><thead><tr>' +
+                    '<th>Name</th>' +
+                    '<th>Description</th>' +
+                    '<th>Pattern</th>' +
+                    '<th>Range</th>' +
+                    '<th>Actions</th>' +
+                    '</tr></thead><tbody>';
+                    
+                templates.forEach(template => {
+                    const rangeText = template.start_range && template.end_range ? 
+                        `${template.start_range}-${template.end_range}` : 'N/A';
+                    
+                    html += `<tr>
+                        <td>${template.name}</td>
+                        <td>${template.description || '-'}</td>
+                        <td><code>${template.pattern}</code></td>
+                        <td>${rangeText}</td>
+                        <td>
+                            <button class="btn btn-small" onclick="deleteTemplate(${template.id})">Delete</button>
+                        </td>
+                    </tr>`;
+                });
+                
+                html += '</tbody></table>';
+                templateList.innerHTML = html;
+                
+                // Update template dropdown in reservation form
+                const templateSelect = document.getElementById('reservation-template');
+                templateSelect.innerHTML = '<option value="">Select Template</option>';
+                templates.forEach(template => {
+                    templateSelect.add(new Option(template.name, template.id));
+                });
+                
+            } catch (error) {
+                console.error('Error fetching templates:', error);
+            }
+        }
+        
+        async function addTemplate() {
+            const template = {
+                name: document.getElementById('template-name').value,
+                description: document.getElementById('template-description').value || null,
+                pattern: document.getElementById('template-pattern').value
+            };
+            
+            const startRange = document.getElementById('template-start-range').value;
+            if (startRange) {
+                template.start_range = parseInt(startRange);
+            }
+            
+            const endRange = document.getElementById('template-end-range').value;
+            if (endRange) {
+                template.end_range = parseInt(endRange);
+            }
+            
+            try {
+                const res = await fetch('/v1/dhcp-templates/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(template)
+                });
+                
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.detail || 'Failed to create template');
+                }
+                
+                const data = await res.json();
+                document.getElementById('template-result').textContent = `Template "${data.name}" created successfully`;
+                
+                // Reset form and refresh list
+                document.getElementById('template-form').reset();
+                fetchTemplates();
+                
+            } catch (error) {
+                document.getElementById('template-result').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function deleteTemplate(templateId) {
+            if (!confirm('Are you sure you want to delete this template?')) {
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/v1/dhcp-templates/${templateId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.detail || 'Failed to delete template');
+                }
+                
+                document.getElementById('template-result').textContent = 'Template deleted successfully';
+                fetchTemplates();
+                
+            } catch (error) {
+                document.getElementById('template-result').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Template Reservations Management
+        async function fetchTemplateReservations() {
+            try {
+                const res = await fetch('/v1/dhcp-templates/reservations');
+                const reservations = await res.json();
+                
+                const reservationList = document.getElementById('template-reservation-list');
+                
+                if (reservations.length === 0) {
+                    reservationList.innerHTML = '<p>No template reservations defined</p>';
+                    
+                    // Clear the generate dropdown
+                    const generateSelect = document.getElementById('generate-reservation');
+                    generateSelect.innerHTML = '<option value="">Select Template Reservation</option>';
+                    return;
+                }
+                
+                let html = '<table class="data-table"><thead><tr>' +
+                    '<th>Template</th>' +
+                    '<th>Subnet</th>' +
+                    '<th>Hostname Pattern</th>' +
+                    '<th>Current Counter</th>' +
+                    '<th>Reservations</th>' +
+                    '<th>Actions</th>' +
+                    '</tr></thead><tbody>';
+                    
+                reservations.forEach(reservation => {
+                    html += `<tr>
+                        <td>${reservation.template_name}</td>
+                        <td>${reservation.subnet_name}</td>
+                        <td><code>${reservation.hostname_pattern}</code></td>
+                        <td>${reservation.current_counter}</td>
+                        <td>${reservation.num_reservations}</td>
+                        <td>
+                            <button class="btn btn-small" onclick="deleteReservation(${reservation.id})">Delete</button>
+                        </td>
+                    </tr>`;
+                });
+                
+                html += '</tbody></table>';
+                reservationList.innerHTML = html;
+                
+                // Update reservation dropdown in generate form
+                const generateSelect = document.getElementById('generate-reservation');
+                generateSelect.innerHTML = '<option value="">Select Template Reservation</option>';
+                reservations.forEach(reservation => {
+                    generateSelect.add(new Option(
+                        `${reservation.template_name} → ${reservation.subnet_name}`, 
+                        reservation.id
+                    ));
+                });
+                
+            } catch (error) {
+                console.error('Error fetching template reservations:', error);
+            }
+        }
+        
+        async function addTemplateReservation() {
+            const reservation = {
+                template_id: parseInt(document.getElementById('reservation-template').value),
+                subnet_id: parseInt(document.getElementById('reservation-subnet').value),
+                hostname_pattern: document.getElementById('reservation-hostname-pattern').value,
+                start_counter: parseInt(document.getElementById('reservation-start-counter').value)
+            };
+            
+            try {
+                const res = await fetch('/v1/dhcp-templates/reservations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(reservation)
+                });
+                
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.detail || 'Failed to create template reservation');
+                }
+                
+                const data = await res.json();
+                document.getElementById('reservation-result').textContent = `Template reservation created successfully for subnet ${data.subnet_name}`;
+                
+                // Reset form and fetch updated reservations
+                document.getElementById('reservation-form').reset();
+                fetchTemplateReservations();
+                
+            } catch (error) {
+                document.getElementById('reservation-result').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function deleteReservation(reservationId) {
+            if (!confirm('Are you sure you want to delete this template reservation?')) {
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/v1/dhcp-templates/reservations/${reservationId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.detail || 'Failed to delete template reservation');
+                }
+                
+                document.getElementById('reservation-result').textContent = 'Template reservation deleted successfully';
+                fetchTemplateReservations();
+                
+            } catch (error) {
+                document.getElementById('reservation-result').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Generate DHCP entries from template
+        async function generateEntries() {
+            const payload = {
+                template_reservation_id: parseInt(document.getElementById('generate-reservation').value),
+                count: parseInt(document.getElementById('generate-count').value)
+            };
+            
+            try {
+                const reservationId = document.getElementById('generate-reservation').value;
+                const res = await fetch(`/v1/dhcp-templates/reservations/${reservationId}/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error.detail || 'Failed to generate DHCP entries');
+                }
+                
+                const data = await res.json();
+                
+                // Format and display result
+                let resultHtml = `<p>${data.length} DHCP entries generated successfully:</p>`;
+                resultHtml += '<table class="data-table"><thead><tr>' +
+                    '<th>Hostname</th>' +
+                    '<th>MAC Address</th>' +
+                    '<th>IP Address</th>' +
+                    '</tr></thead><tbody>';
+                    
+                data.forEach(entry => {
+                    resultHtml += `<tr>
+                        <td>${entry.hostname}</td>
+                        <td>${entry.mac_address}</td>
+                        <td>${entry.ip_address}</td>
+                    </tr>`;
+                });
+                
+                resultHtml += '</tbody></table>';
+                document.getElementById('generate-result').innerHTML = resultHtml;
+                
+                // Reset count and refresh reservation list
+                document.getElementById('generate-count').value = 1;
+                fetchTemplateReservations();
+                
+            } catch (error) {
+                document.getElementById('generate-result').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Initialize templates when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchTemplates();
+            fetchTemplateReservations();
+        });
+        
+        // Update subnet dropdown for template reservations when subnets are loaded
+        const originalFetchSubnets4 = fetchSubnets;
+        fetchSubnets = async function() {
+            await originalFetchSubnets4();
+            
+            // Update the reservation subnet dropdown
+            const reservationSubnet = document.getElementById('reservation-subnet');
+            
+            if (reservationSubnet) {
+                // Get the subnet options from one of the existing dropdowns
+                const subnetOptions = Array.from(document.getElementById('static-dhcp-subnet').options)
+                    .filter(option => option.value !== "");
+                
+                // Update the dropdown (keep the first "Select" option)
+                while (reservationSubnet.options.length > 1) {
+                    reservationSubnet.remove(1);
+                }
+                
+                // Add subnet options
+                subnetOptions.forEach(option => {
+                    reservationSubnet.add(new Option(option.text, option.value));
+                });
+            }
         };
     </script>
 </head>
 <body>
+    <header>
+        <h1>VyOS Network Management</h1>
+        <nav>
+            <a href="#" class="active">Dashboard</a>
+            <a href="topology.html" target="_blank">Network Topology</a>
+            <a href="#" onclick="alert('Not implemented')">Settings</a>
+            <a href="#" onclick="alert('Not implemented')">Help</a>
+        </nav>
+    </header>
+    
     <h1>VyOS API Dashboard</h1>
     <div class="info">
         <p>Welcome to the VyOS API Web UI. Use the sections below to interact with the API and view system status.</p>
@@ -274,6 +1281,319 @@
             <button class="btn" type="submit">Add Integration</button>
         </form>
         <div class="result" id="integration-create-result"></div>
+    </div>
+    <div class="section">
+        <h2>VM Management</h2>
+        <button class="btn" onclick="fetchVMs()">Refresh VMs</button>
+        <pre id="vms-result">Loading...</pre>
+        <h3>Provision VM</h3>
+        <form onsubmit="event.preventDefault(); provisionVM();">
+            <input class="input" id="vm-name" placeholder="VM Name" required />
+            <input class="input" id="vm-mac" placeholder="MAC Address" required />
+            <button class="btn" type="submit">Provision</button>
+        </form>
+        <div class="result" id="vm-provision-result"></div>
+        <h3>Decommission VM</h3>
+        <form onsubmit="event.preventDefault(); decommissionVM();">
+            <input class="input" id="vm-decom-name" placeholder="VM Name" required />
+            <button class="btn" type="submit">Decommission</button>
+        </form>
+        <div class="result" id="vm-decom-result"></div>
+    </div>
+    <div class="section">
+        <h2>Static Routes</h2>
+        <button class="btn" onclick="fetchStaticRoutes()">Refresh Routes</button>
+        <pre id="routes-result">Loading...</pre>
+        <h3>Add Static Route</h3>
+        <form onsubmit="event.preventDefault(); addStaticRoute();">
+            <input class="input" id="route-dest" placeholder="Destination (CIDR)" required />
+            <input class="input" id="route-nexthop" placeholder="Next Hop" required />
+            <input class="input" id="route-desc" placeholder="Description (optional)" />
+            <input class="input" id="route-distance" placeholder="Distance (default 1)" type="number" min="1" max="255" />
+            <button class="btn" type="submit">Add Route</button>
+        </form>
+        <div class="result" id="route-add-result"></div>
+        <h3>Delete Static Route</h3>
+        <form onsubmit="event.preventDefault(); deleteStaticRoute();">
+            <input class="input" id="route-id-delete" placeholder="Route ID" required />
+            <button class="btn" type="submit">Delete Route</button>
+        </form>
+        <div class="result" id="route-delete-result"></div>
+    </div>
+    <div class="section">
+        <h2>Firewall Management</h2>
+        <button class="btn" onclick="fetchFirewallPolicies()">Refresh Policies</button>
+        <pre id="firewall-policies-result">Loading...</pre>
+        <h3>Add Firewall Policy</h3>
+        <form onsubmit="event.preventDefault(); addFirewallPolicy();">
+            <input class="input" id="fw-policy-name" placeholder="Policy Name" required />
+            <input class="input" id="fw-policy-action" placeholder="Default Action (accept/drop/reject)" required />
+            <input class="input" id="fw-policy-desc" placeholder="Description (optional)" />
+            <button class="btn" type="submit">Add Policy</button>
+        </form>
+        <div class="result" id="fw-policy-add-result"></div>
+        <h3>Delete Firewall Policy</h3>
+        <form onsubmit="event.preventDefault(); deleteFirewallPolicy();">
+            <input class="input" id="fw-policy-id-delete" placeholder="Policy ID" required />
+            <button class="btn" type="submit">Delete Policy</button>
+        </form>
+        <div class="result" id="fw-policy-delete-result"></div>
+    </div>
+    <div class="section">
+        <h2>Subnet Management</h2>
+        <button class="btn" onclick="fetchSubnets()">Refresh Subnets</button>
+        <pre id="subnets-result">Loading...</pre>
+        <h3>Add Subnet</h3>
+        <form onsubmit="event.preventDefault(); addSubnet();">
+            <input class="input" id="subnet-name" placeholder="Subnet Name" required />
+            <input class="input" id="subnet-cidr" placeholder="CIDR (e.g., 10.0.1.0/24)" required />
+            <input class="input" id="subnet-gateway" placeholder="Gateway (optional)" />
+            <input class="input" id="subnet-vlan" placeholder="VLAN ID (optional)" type="number" min="1" max="4094" />
+            <label><input type="checkbox" id="subnet-isolated" checked /> Isolate from other subnets</label>
+            <button class="btn" type="submit">Add Subnet</button>
+        </form>
+        <div class="result" id="subnet-add-result"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Static DHCP Assignments</h2>
+        <div>
+            <label>Filter by Subnet:</label>
+            <select id="static-dhcp-subnet-filter" onchange="fetchStaticDHCP()">
+                <option value="">All Subnets</option>
+            </select>
+            <button class="btn" onclick="fetchStaticDHCP()">Refresh</button>
+        </div>
+        <pre id="static-dhcp-result">Loading...</pre>
+        <h3>Add Static DHCP Assignment</h3>
+        <form onsubmit="event.preventDefault(); addStaticDHCP();">
+            <select class="input" id="static-dhcp-subnet" required>
+                <option value="">Select Subnet</option>
+            </select>
+            <input class="input" id="static-dhcp-mac" placeholder="MAC Address" required />
+            <input class="input" id="static-dhcp-ip" placeholder="IP Address" required />
+            <input class="input" id="static-dhcp-hostname" placeholder="Hostname (optional)" />
+            <button class="btn" type="submit">Add Assignment</button>
+        </form>
+        <div class="result" id="static-dhcp-add-result"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Port Mappings</h2>
+        <div>
+            <label>Filter by Subnet:</label>
+            <select id="port-mapping-subnet-filter" onchange="fetchPortMappings()">
+                <option value="">All Subnets</option>
+            </select>
+            <button class="btn" onclick="fetchPortMappings()">Refresh</button>
+        </div>
+        <pre id="port-mappings-result">Loading...</pre>
+        <h3>Add Port Mapping</h3>
+        <form onsubmit="event.preventDefault(); addPortMapping();">
+            <select class="input" id="port-mapping-subnet" required>
+                <option value="">Select Subnet</option>
+            </select>
+            <input class="input" id="port-mapping-external-ip" placeholder="External IP" required />
+            <input class="input" id="port-mapping-external-port" placeholder="External Port" type="number" min="1" max="65535" required />
+            <input class="input" id="port-mapping-internal-ip" placeholder="Internal IP" required />
+            <input class="input" id="port-mapping-internal-port" placeholder="Internal Port" type="number" min="1" max="65535" required />
+            <select class="input" id="port-mapping-protocol" required>
+                <option value="tcp">TCP</option>
+                <option value="udp">UDP</option>
+                <option value="both">TCP/UDP</option>
+            </select>
+            <input class="input" id="port-mapping-description" placeholder="Description (optional)" />
+            <button class="btn" type="submit">Add Mapping</button>
+        </form>
+        <div class="result" id="port-mapping-add-result"></div>
+    </div>
+    <div class="section">
+        <h2>Subnet Connection Rules</h2>
+        <div>
+            <label>Filter by Source Subnet:</label>
+            <select id="subnet-conn-source-filter" onchange="fetchSubnetConnections()">
+                <option value="">All Source Subnets</option>
+            </select>
+            <label>Filter by Destination Subnet:</label>
+            <select id="subnet-conn-dest-filter" onchange="fetchSubnetConnections()">
+                <option value="">All Destination Subnets</option>
+            </select>
+            <button class="btn" onclick="fetchSubnetConnections()">Refresh</button>
+        </div>
+        <pre id="subnet-connections-result">Loading...</pre>
+        <h3>Add Inter-Subnet Connection Rule</h3>
+        <form onsubmit="event.preventDefault(); addSubnetConnection();">
+            <select class="input" id="subnet-conn-source" required>
+                <option value="">Select Source Subnet</option>
+            </select>
+            <select class="input" id="subnet-conn-dest" required>
+                <option value="">Select Destination Subnet</option>
+            </select>
+            <select class="input" id="subnet-conn-protocol">
+                <option value="all">All Protocols</option>
+                <option value="tcp">TCP</option>
+                <option value="udp">UDP</option>
+                <option value="icmp">ICMP</option>
+            </select>
+            <input class="input" id="subnet-conn-src-port" placeholder="Source Port (optional)" />
+            <input class="input" id="subnet-conn-dest-port" placeholder="Destination Port (optional)" />
+            <input class="input" id="subnet-conn-description" placeholder="Description (optional)" />
+            <label><input type="checkbox" id="subnet-conn-enabled" checked /> Enabled</label>
+            <button class="btn" type="submit">Add Connection Rule</button>
+        </form>
+        <div class="result" id="subnet-conn-add-result"></div>
+    </div>
+    <div class="section">
+        <h2>Subnet Traffic Analytics</h2>
+        <div>
+            <label>Filter by Subnet:</label>
+            <select id="traffic-subnet-filter" onchange="updateTrafficCharts()">
+                <option value="">All Subnets</option>
+            </select>
+            <label>Time Period:</label>
+            <select id="traffic-time-period" onchange="updateTrafficCharts()">
+                <option value="1">Last 24 hours</option>
+                <option value="7" selected>Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+            </select>
+            <button class="btn" onclick="updateTrafficCharts()">Refresh</button>
+        </div>
+        
+        <h3>Traffic Summary</h3>
+        <div id="traffic-summary-container"></div>
+        
+        <h3>Traffic Over Time</h3>
+        <div>
+            <label>Metric:</label>
+            <select id="traffic-metric" onchange="updateTrafficCharts()">
+                <option value="rx_bytes">Received Bytes</option>
+                <option value="tx_bytes">Transmitted Bytes</option>
+                <option value="active_hosts">Active Hosts</option>
+            </select>
+            <label>Interval:</label>
+            <select id="traffic-interval" onchange="updateTrafficCharts()">
+                <option value="hourly">Hourly</option>
+                <option value="daily">Daily</option>
+            </select>
+        </div>
+        <div id="traffic-chart-container" style="width:100%; height:400px;"></div>
+    </div>
+    
+    <div class="section">
+        <h2>Bulk VM Assignment</h2>
+        <form id="bulk-vm-form">
+            <div>
+                <label>Target Subnet:</label>
+                <select id="bulk-vm-subnet" class="input" required>
+                    <option value="">Select Subnet</option>
+                </select>
+            </div>
+            
+            <div>
+                <label><input type="checkbox" id="bulk-vm-static-dhcp" checked /> Create Static DHCP Entries</label>
+            </div>
+            
+            <div>
+                <textarea id="bulk-vm-list" class="input" rows="10" placeholder="Enter VM list (one per line):&#10;machine_id,hostname,ip_address (optional)&#10;Example:&#10;vm-123,webserver1,10.0.1.10&#10;vm-124,dbserver1&#10;vm-125,appserver1,10.0.1.12" required></textarea>
+            </div>
+            
+            <div>
+                <button type="button" class="btn" onclick="previewBulkAssignment()">Preview Assignment</button>
+                <button type="submit" class="btn btn-primary" onclick="event.preventDefault(); submitBulkAssignment()">Assign VMs</button>
+            </div>
+        </form>
+        
+        <div id="bulk-vm-preview" class="preview" style="display:none;">
+            <h3>Assignment Preview</h3>
+            <pre id="bulk-vm-preview-content"></pre>
+        </div>
+        
+        <div id="bulk-vm-result" class="result" style="display:none;">
+            <h3>Assignment Results</h3>
+            <div id="bulk-vm-summary"></div>
+            
+            <div id="bulk-vm-successful">
+                <h4>Successfully Assigned VMs</h4>
+                <table class="data-table" id="bulk-vm-success-table">
+                    <thead>
+                        <tr>
+                            <th>Machine ID</th>
+                            <th>Hostname</th>
+                            <th>MAC Address</th>
+                            <th>IP Address</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <div id="bulk-vm-failed" style="display:none;">
+                <h4>Failed Assignments</h4>
+                <table class="data-table" id="bulk-vm-failed-table">
+                    <thead>
+                        <tr>
+                            <th>Machine ID</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>DHCP Reservation Templates</h2>
+        <div>
+            <button class="btn" onclick="fetchTemplates()">Refresh Templates</button>
+        </div>
+        
+        <h3>Templates</h3>
+        <div id="template-list"></div>
+        
+        <h3>Add Template</h3>
+        <form id="template-form" onsubmit="event.preventDefault(); addTemplate()">
+            <input class="input" id="template-name" placeholder="Template Name" required />
+            <input class="input" id="template-description" placeholder="Description (optional)" />
+            <input class="input" id="template-pattern" placeholder="IP Pattern (e.g., 10.0.{subnet}.{host})" required />
+            <div class="form-row">
+                <input class="input" id="template-start-range" type="number" placeholder="Start Range (optional)" />
+                <input class="input" id="template-end-range" type="number" placeholder="End Range (optional)" />
+            </div>
+            <button class="btn" type="submit">Add Template</button>
+        </form>
+        <div id="template-result" class="result"></div>
+        
+        <h3>Template Reservations</h3>
+        <div>
+            <button class="btn" onclick="fetchTemplateReservations()">Refresh Reservations</button>
+        </div>
+        <div id="template-reservation-list"></div>
+        
+        <h3>Add Template Reservation</h3>
+        <form id="reservation-form" onsubmit="event.preventDefault(); addTemplateReservation()">
+            <select class="input" id="reservation-template" required>
+                <option value="">Select Template</option>
+            </select>
+            <select class="input" id="reservation-subnet" required>
+                <option value="">Select Subnet</option>
+            </select>
+            <input class="input" id="reservation-hostname-pattern" placeholder="Hostname Pattern (e.g., server-{counter})" required />
+            <input class="input" id="reservation-start-counter" type="number" value="1" min="1" placeholder="Start Counter" />
+            <button class="btn" type="submit">Add Reservation</button>
+        </form>
+        <div id="reservation-result" class="result"></div>
+        
+        <h3>Generate DHCP Entries</h3>
+        <form id="generate-form" onsubmit="event.preventDefault(); generateEntries()">
+            <select class="input" id="generate-reservation" required>
+                <option value="">Select Template Reservation</option>
+            </select>
+            <input class="input" id="generate-count" type="number" value="1" min="1" placeholder="Number of Entries" required />
+            <button class="btn" type="submit">Generate Entries</button>
+        </form>
+        <div id="generate-result" class="result"></div>
     </div>
 </body>
 </html>

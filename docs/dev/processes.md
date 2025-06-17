@@ -1,4 +1,4 @@
-# Project Processes & Automation Reference
+# Project Processes & Automation Reference (2025)
 
 This document is the **single source of truth** for all project workflows, automation, CI/CD, and manual steps.  
 It defines how features, tasks, documentation, and releases are processed—by both humans and automation.
@@ -38,7 +38,7 @@ End-to-end lifecycle for a feature or task.
 - Log errors and suggest fixes.
 
 **Documentation Sync:**  
-- Update docs after implementation and testing, before marking complete.
+- Always update docs with code changes.
 
 ---
 
@@ -128,18 +128,19 @@ Same as @dev-cycle, but may be invoked for a batch of features/tasks.
 
 ---
 
-## 3. CI/CD Integration
+## 3. Automation & CI/CD
 
-- CI/CD must run lint, tests, and doc checks for every push and PR.
-- CI/CD must block merge if any check fails.
-- CI/CD must update build status and notify the team.
+- Use GitHub Actions for CI (test, lint, build, deploy).
+- All pushes and PRs trigger tests and linting.
+- Deployments are automated for the main branch.
 
 ---
 
-## 4. Recursive/Batch Processing
+## 4. Tracking Files
 
-- When a process is invoked on a list (e.g., all features in backlog), process each item sequentially using the defined steps.
-- Log progress and errors for each item.
+- `feature_refinement_log.md`: Track feature progress and refinement.
+- `TODO.md`: Track outstanding dev tasks and enhancements.
+- `description_and_roadmap.md`: Track architecture and roadmap.
 
 ---
 

@@ -1,4 +1,4 @@
-# VyOS API Security Guide
+# VyOS API Security Guide (2025)
 
 This guide explains all security features, best practices, and recommendations for using the VyOS API securely.
 
@@ -10,57 +10,38 @@ This guide explains all security features, best practices, and recommendations f
 - API keys can be created, listed, and revoked per user.
 - Use strong, unique passwords and API keys.
 
----
-
 ## Passwords
 - Passwords are hashed using bcrypt.
 - Password complexity is enforced by the API.
 - Never share or reuse passwords.
-
----
 
 ## Secrets
 - All secrets are encrypted at rest using Fernet.
 - Encryption key is set via `SECRETS_ENCRYPTION_KEY` environment variable.
 - Only authorized users can access their secrets.
 
----
-
 ## Rate Limiting
 - Default: 5 requests/minute per IP per endpoint.
 - Returns HTTP 429 on excessive requests.
 - Protects against brute-force and DoS attacks.
-
----
 
 ## Audit Logging
 - All critical actions are logged to `vyos_api_audit.log`.
 - Logs include user, action, result, and details.
 - Regularly review logs for suspicious activity.
 
----
+## Best Practices
+- Rotate API keys regularly.
+- Use least-privilege roles for users.
+- Enable HTTPS in production (use a reverse proxy like Nginx or Caddy).
+- Restrict access to the API server by IP if possible.
+- Monitor audit logs and set up alerts for suspicious activity.
 
-## Network Security
-- VyOS API communication should use HTTPS (verify certificates).
-- Restrict API server access to trusted networks.
-- Use firewalls to limit access to the API port.
-
----
-
-## Recommendations
-- Change default credentials after first login.
-- Rotate API keys and secrets regularly.
-- Monitor logs for suspicious activity.
-- Keep your system and dependencies up to date.
-- Use environment variables for sensitive config.
+## Incident Response
+- If a key or password is compromised, revoke it immediately.
+- Review audit logs for unauthorized actions.
+- Rotate all secrets and update the encryption key if needed.
 
 ---
 
-## Example: Secure API Key Usage
-```python
-headers = {"X-API-Key": "your-api-key"}
-response = requests.get("http://localhost:8000/v1/ports/status", headers=headers)
-```
-
----
-For more, see `user-guide.md` and `how-to-extend.md`.
+For more, see [user-guide.md](user-guide.md) and [exceptions.md](exceptions.md).

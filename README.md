@@ -128,3 +128,83 @@ For common issues and their resolutions, please refer to the [Troubleshooting se
 
 ## Discoverability
 The project includes an `install.sh` script and a `vyos-api.service` systemd unit file for automated setup and running the API as a service. These are detailed in the [Installation Guide](docs/vyos-installation.md).
+
+# VyOS API Server
+
+Advanced network management API for VyOS-based systems.
+
+## Overview
+
+This API server provides a comprehensive interface for managing VyOS network configurations, including advanced networking features, VM management, and analytics. It offers both REST API endpoints and a web interface for easy management.
+
+## Key Features
+
+### Networking
+- **Multiple Subnet Management**: Create, configure and manage multiple network subnets
+- **Subnet Isolation**: Isolate network segments for enhanced security
+- **Inter-Subnet Access Control**: Define precise rules for traffic between isolated subnets
+- **Static DHCP Assignment**: Configure fixed IP addresses for specific MAC addresses
+- **DHCP Reservation Templates**: Create patterns for efficient IP assignments
+- **Port Mapping**: Configure port forwarding for exposing services
+
+### VM Integration
+- **VM Network Configuration**: Manage VM network settings
+- **Bulk VM Assignment**: Efficiently assign multiple VMs to subnets in batch
+
+### Monitoring & Analytics
+- **Subnet Traffic Analytics**: Monitor bandwidth usage and activity across subnets
+- **Network Visualization**: Interactive network topology visualization
+- **Traffic Metrics**: Collect and display bandwidth usage statistics
+
+### Security
+- **RBAC**: Role-based access control for user management
+- **API Key Authentication**: Secure API authentication mechanism
+- **Change Audit Log**: Comprehensive logging of all configuration changes
+
+## Documentation
+
+### User Documentation
+- [User Guide](docs/user/user-guide.md)
+- [API Reference](docs/user/api-reference.md)
+- [Installation Guide](docs/user/vyos-installation.md)
+- [Examples](docs/user/EXAMPLES.md)
+- [Subnet Management](docs/user/subnet-management.md)
+- [Bulk Operations](docs/user/bulk-operations.md)
+- [DHCP Templates](docs/user/dhcp-templates.md)
+- [Analytics](docs/user/analytics.md)
+- [Topology Visualization](docs/user/topology-visualization.md)
+
+### Developer Documentation
+- [Contributing Guide](docs/dev/CONTRIBUTING.md)
+- [Development Roadmap](docs/dev/description_and_roadmap.md)
+- [Feature Refinement Log](docs/dev/feature_refinement_log.md)
+- [Extension Guide](docs/dev/how-to-extend.md)
+
+## Getting Started
+
+1. Install the required dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+
+2. Create and initialize the database:
+   ```
+   python -m alembic upgrade head
+   ```
+
+3. Run the server:
+   ```
+   python main.py
+   ```
+
+4. Access the web interface at `http://localhost:8000`
+
+## Requirements
+
+- Python 3.8+
+- VyOS 1.3+ (for integration with VyOS features)
+- PostgreSQL or SQLite database
+
+## Contributing
+
+See [CONTRIBUTING.md](docs/dev/CONTRIBUTING.md) for details on how to contribute to this project.

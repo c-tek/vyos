@@ -1,0 +1,52 @@
+{
+    "extends": [
+        "eslint:recommended"
+    ],
+    "env": {
+        "browser": true,
+        "es6": true
+    },
+    "parserOptions": {
+        "ecmaVersion": 2020,
+        "sourceType": "module"
+    },
+    "rules": {
+        "indent": [
+            "error",
+            4,
+            {
+                "SwitchCase": 1
+            }
+        ],
+        "linebreak-style": [
+            "error",
+            "unix"
+        ],
+        "quotes": [
+            "error",
+            "single"
+        ],
+        "semi": [
+            "error",
+            "always"
+        ],
+        "no-unused-vars": [
+            "warn"
+        ],
+        "no-console": [
+            "warn",
+            {
+                "allow": [
+                    "warn",
+                    "error"
+                ]
+            }
+        ]
+    },
+    "globals": {
+        "fetch": "readonly",
+        "alert": "readonly",
+        "confirm": "readonly",
+        "d3": "readonly"
+    }
+}

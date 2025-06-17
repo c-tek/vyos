@@ -1,15 +1,15 @@
-# VyOS API Installation Guide
+# VyOS API Installation & Getting Started Guide (2025)
 
-This guide provides step-by-step instructions for installing and configuring the VyOS API.
+This guide will help you install, configure, and use the VyOS API, even if you have minimal technical experience.
 
 ---
 
 ## Prerequisites
-- Python 3.12+
+- Linux server (Debian/Ubuntu recommended)
+- Python 3.12 or newer
 - pip (Python package manager)
 - VyOS router (tested with 1.4+)
-- Linux server (Debian/Ubuntu recommended)
-- (Optional) systemd for service management
+- (Optional) systemd for running as a service
 
 ---
 
@@ -31,56 +31,54 @@ pip install -r requirements.txt
 ```
 
 ## 4. Database Setup
-- By default, SQLite is used. For production, configure PostgreSQL/MySQL in `config.py`.
+- By default, SQLite is used (no setup needed for testing).
+- For production, edit `config.py` to use PostgreSQL/MySQL.
 - To initialize the database:
 ```bash
 alembic upgrade head
 ```
 
 ## 5. Configuration
-- Edit `config.py` to set VyOS API URL, credentials, and DB settings.
-- Set environment variables as needed (see `README.md` for details).
+- Edit `config.py` to set API keys, database, and VyOS connection details.
+- Set the `SECRETS_ENCRYPTION_KEY` environment variable for secure secret storage.
 
 ## 6. Running the API
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
+- The API will be available at `http://localhost:8000`.
 
-## 7. Running as a Service (systemd)
-- See `docs/vyos-api.service` for a sample unit file.
-- Copy and edit as needed:
-```bash
-sudo cp docs/vyos-api.service /etc/systemd/system/vyos-api.service
-sudo systemctl daemon-reload
-sudo systemctl enable vyos-api
-sudo systemctl start vyos-api
-```
+## 7. First User Registration (Bootstrap)
+- The first user you register will become the admin.
+- Use the `/v1/auth/users/` endpoint to register.
 
-## 8. VyOS Integration
-- Ensure the VyOS router API is enabled and reachable from the API server.
-- Set correct credentials in `config.py`.
-- Example VyOS config for API:
-```
-set service https api
-set service https api listen-address 0.0.0.0
-set service https api port 8443
-set service https api authentication plaintext-password <vyos-password>
-```
+## 8. Creating API Keys
+- After registering and logging in, create API keys via `/v1/auth/users/me/api-keys/`.
+- Use the API key in the `X-API-Key` header for all requests.
 
-## 9. Troubleshooting
-- Check logs in `vyos_api_audit.log` and systemd journal.
-- Use `/health` endpoint to verify connectivity.
-- Common issues:
-  - Port conflicts: Change API port if needed.
-  - DB errors: Check DB config and migrations.
-  - VyOS unreachable: Check network/firewall.
-
-## 10. Upgrading
-- Pull latest code, re-run `pip install -r requirements.txt` and `alembic upgrade head`.
-
-## 11. Uninstallation
-- Stop the service: `sudo systemctl stop vyos-api`
-- Remove files and virtual environment as needed.
+## 9. Using the API
+- See [api-reference.md](api-reference.md) for all endpoints and usage examples.
+- See [EXAMPLES.md](EXAMPLES.md) for real-world usage.
 
 ---
-For more details, see `README.md` and `user-guide.md`.
+
+## Troubleshooting
+- If you see database errors, check your `config.py` and run `alembic upgrade head`.
+- For authentication errors, ensure you are using a valid API key or JWT token.
+- Check `vyos_api_audit.log` for audit and error logs.
+
+## Upgrading
+- Pull the latest code: `git pull`
+- Reinstall dependencies if needed: `pip install -r requirements.txt`
+- Run database migrations: `alembic upgrade head`
+
+---
+
+## Need Help?
+- See [user-guide.md](user-guide.md) for more workflows and troubleshooting.
+- For advanced configuration, see [security.md](security.md).
+- For error details, see [exceptions.md](exceptions.md).
+
+---
+
+VyOS API makes network automation easy and secure for everyone!

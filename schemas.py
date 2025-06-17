@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, validator  # Add validator
 from typing import List, Optional, Literal, Dict, Any
 from datetime import datetime
-from models import FirewallAction, FirewallRuleProtocol, Role, Permission, UserRoleAssignment # Import new enums and RBAC models
+from models import FirewallAction, FirewallRuleProtocol, Role, Permission, UserRoleAssignment, PortProtocol, PortType # Import new enums and RBAC models
 
 class PortActionRequest(BaseModel):
     action: Literal["create", "delete", "pause", "enable", "disable"]
@@ -546,3 +546,241 @@ class HADRConfigResponse(HADRConfigBase):
 
     class Config:
         orm_mode = True
+
+class StaticDHCPAssignmentBase(BaseModel):
+    subnet_id: int
+    mac_address: str
+    ip_address: str
+    hostname: Optional[str] = None
+
+class StaticDHCPAssignmentCreate(StaticDHCPAssignmentBase):
+    pass
+
+class StaticDHCPAssignmentUpdate(BaseModel):
+    mac_address: Optional[str] = None
+    ip_address: Optional[str] = None
+    hostname: Optional[str] = None
+
+class StaticDHCPAssignmentResponse(StaticDHCPAssignmentBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True
+
+class SubnetPortMappingBase(BaseModel):
+    subnet_id: int
+    external_ip: str
+    external_port: int = Field(..., ge=1, le=65535)
+    internal_ip: str
+    internal_port: int = Field(..., ge=1, le=65535)
+    protocol: PortProtocol
+    description: Optional[str] = None
+
+class SubnetPortMappingCreate(SubnetPortMappingBase):
+    pass
+
+class SubnetPortMappingUpdate(BaseModel):
+    external_ip: Optional[str] = None
+    external_port: Optional[int] = Field(None, ge=1, le=65535)
+    internal_ip: Optional[str] = None
+    internal_port: Optional[int] = Field(None, ge=1, le=65535)
+    protocol: Optional[PortProtocol] = None
+    description: Optional[str] = None
+
+class SubnetPortMappingResponse(SubnetPortMappingBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True
+
+class SubnetBase(BaseModel):
+    name: str
+    cidr: str
+    gateway: Optional[str] = None
+    vlan_id: Optional[int] = None
+    is_isolated: bool = True
+
+class SubnetCreate(SubnetBase):
+    pass
+
+class SubnetUpdate(BaseModel):
+    name: Optional[str] = None
+    gateway: Optional[str] = None
+    vlan_id: Optional[int] = None
+    is_isolated: Optional[bool] = None
+
+class SubnetResponse(SubnetBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True
+
+class SubnetConnectionRuleBase(BaseModel):
+    source_subnet_id: int
+    destination_subnet_id: int
+    protocol: Optional[FirewallRuleProtocol] = FirewallRuleProtocol.all
+    source_port: Optional[str] = None
+    destination_port: Optional[str] = None
+    description: Optional[str] = None
+    is_enabled: bool = True
+
+class SubnetConnectionRuleCreate(SubnetConnectionRuleBase):
+    pass
+
+class SubnetConnectionRuleUpdate(BaseModel):
+    protocol: Optional[FirewallRuleProtocol] = None
+    source_port: Optional[str] = None
+    destination_port: Optional[str] = None
+    description: Optional[str] = None
+    is_enabled: Optional[bool] = None
+
+class SubnetConnectionRuleResponse(SubnetConnectionRuleBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    # Include subnet details for better API responses
+    source_subnet_name: Optional[str] = None
+    destination_subnet_name: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
+class SubnetTrafficMetricsBase(BaseModel):
+    subnet_id: int
+    timestamp: datetime
+    rx_bytes: int
+    tx_bytes: int
+    rx_packets: int
+    tx_packets: int
+    active_hosts: int
+
+class SubnetTrafficMetricsCreate(BaseModel):
+    subnet_id: int
+    rx_bytes: int
+    tx_bytes: int
+    rx_packets: int
+    tx_packets: int
+    active_hosts: int
+    # timestamp is auto-generated
+
+class SubnetTrafficMetricsResponse(SubnetTrafficMetricsBase):
+    id: int
+    
+    class Config:
+        orm_mode = True
+
+class SubnetTrafficSummary(BaseModel):
+    subnet_id: int
+    subnet_name: str
+    subnet_cidr: str
+    total_rx_bytes: int
+    total_tx_bytes: int
+    avg_rx_bytes_per_hour: float
+    avg_tx_bytes_per_hour: float
+    peak_rx_bytes: int
+    peak_tx_bytes: int
+    peak_time: Optional[datetime]
+    avg_active_hosts: float
+    max_active_hosts: int
+    
+class TimeSeriesDataPoint(BaseModel):
+    timestamp: datetime
+    value: float
+    
+class SubnetTrafficTimeSeries(BaseModel):
+    subnet_id: int
+    subnet_name: str
+    metric: str  # "rx_bytes", "tx_bytes", "active_hosts", etc.
+    interval: str  # "hourly", "daily"
+    data: List[TimeSeriesDataPoint]
+
+class BulkVMAssignmentItem(BaseModel):
+    machine_id: str
+    hostname: Optional[str] = None
+    internal_ip: Optional[str] = None  # If not provided, will be assigned from DHCP pool
+
+class BulkVMAssignment(BaseModel):
+    subnet_id: int
+    vms: List[BulkVMAssignmentItem]
+    create_static_dhcp: Optional[bool] = True  # Whether to create static DHCP entries for VMs with specific IPs
+
+class BulkVMAssignmentResponse(BaseModel):
+    subnet_id: int
+    subnet_name: str
+    subnet_cidr: str
+    successful: List[dict]  # List of successfully assigned VMs with their details
+    failed: List[dict]      # List of VMs that failed to be assigned with error details
+    total_requested: int
+    total_successful: int
+    total_failed: int
+
+class DHCPTemplateBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    pattern: str
+    start_range: Optional[int] = None
+    end_range: Optional[int] = None
+
+class DHCPTemplateCreate(DHCPTemplateBase):
+    pass
+
+class DHCPTemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    pattern: Optional[str] = None
+    start_range: Optional[int] = None
+    end_range: Optional[int] = None
+
+class DHCPTemplateResponse(DHCPTemplateBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    created_by: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
+class DHCPTemplateReservationBase(BaseModel):
+    template_id: int
+    subnet_id: int
+    hostname_pattern: str
+    start_counter: int = 1
+    num_reservations: int = 0
+
+class DHCPTemplateReservationCreate(DHCPTemplateReservationBase):
+    pass
+
+class DHCPTemplateReservationUpdate(BaseModel):
+    hostname_pattern: Optional[str] = None
+    start_counter: Optional[int] = None
+    num_reservations: Optional[int] = None
+
+class DHCPTemplateReservationResponse(DHCPTemplateReservationBase):
+    id: int
+    current_counter: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    template_name: Optional[str] = None
+    subnet_name: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
+class DHCPReservationFromTemplate(BaseModel):
+    template_reservation_id: int
+    count: int = 1  # How many reservations to generate
+    mac_addresses: Optional[List[str]] = None  # Optional specific MAC addresses
+
+class DHCPGeneratedReservation(BaseModel):
+    id: int
+    mac_address: str
+    ip_address: str
+    hostname: str
+    subnet_id: int

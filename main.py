@@ -34,6 +34,16 @@ from routers.rbac import router as rbac_router
 from routers.quota import router as quota_router
 
 from auth import router as auth_router
+from routers.static_routes import router as static_routes_router
+from routers.subnets import router as subnets_router
+from routers.static_dhcp import router as static_dhcp_router
+from routers.port_mapping import router as port_mapping_router
+from routers.subnet_connections import router as subnet_connections_router
+from routers.analytics import router as analytics_router
+from routers.bulk_operations import router as bulk_operations_router
+from routers.dhcp_templates import router as dhcp_templates_router
+from routers.topology import router as topology_router
+from utils_metrics import start_metrics_tasks
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -111,6 +121,15 @@ app.include_router(v1_router, prefix="/v1")
 app.include_router(rbac_router, prefix="/v1")
 app.include_router(quota_router, prefix="/v1")
 app.include_router(auth_router, prefix="/v1/auth")
+app.include_router(static_routes_router, prefix="/v1")
+app.include_router(subnets_router, prefix="/v1")
+app.include_router(static_dhcp_router, prefix="/v1")
+app.include_router(port_mapping_router, prefix="/v1")
+app.include_router(subnet_connections_router, prefix="/v1")
+app.include_router(analytics_router, prefix="/v1")
+app.include_router(bulk_operations_router, prefix="/v1")
+app.include_router(dhcp_templates_router, prefix="/v1")
+app.include_router(topology_router, prefix="/v1")
 # For future: app.include_router(v2_router, prefix="/v2")
 
 # Custom exception handlers
@@ -184,6 +203,11 @@ from utils_scheduled_runner import scheduled_task_runner
 @app.on_event("startup")
 async def start_scheduled_task_runner():
     asyncio.create_task(scheduled_task_runner())
+
+# Start metrics collection background task
+@app.on_event("startup")
+async def startup_event():
+    start_metrics_tasks()
 
 if __name__ == "__main__":
     import uvicorn

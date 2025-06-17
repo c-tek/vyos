@@ -1,6 +1,6 @@
-# VyOS API Exception Handling
+# VyOS API Exception Handling (2025)
 
-This section explains how errors are reported, logged, and handled in the VyOS API.
+This section explains how errors are reported, logged, and handled in the VyOS API, with a full list of custom exceptions and error codes.
 
 ---
 
@@ -28,6 +28,20 @@ All errors return a JSON object:
 
 ---
 
+## Error Codes
+| Code | Meaning                  |
+|------|--------------------------|
+| 400  | Bad request/validation   |
+| 401  | Unauthorized             |
+| 403  | Forbidden                |
+| 404  | Not found                |
+| 409  | Conflict (e.g. duplicate)|
+| 422  | Unprocessable entity     |
+| 429  | Too many requests        |
+| 500  | Internal server error    |
+
+---
+
 ## Logging
 - All exceptions are logged to `vyos_api_audit.log`.
 - Logs include user, action, error type, and details.
@@ -38,7 +52,7 @@ All errors return a JSON object:
 ## Example: Handling a 404 Error
 **Request:**
 ```bash
-curl -X GET "http://localhost:8000/v1/vms/nonexistent-vm" -H "X-API-Key: your-api-key"
+curl -X GET http://localhost:8000/v1/vms/doesnotexist -H "X-API-Key: ..."
 ```
 **Response:**
 ```json
@@ -47,17 +61,11 @@ curl -X GET "http://localhost:8000/v1/vms/nonexistent-vm" -H "X-API-Key: your-ap
     "type": "HTTPException",
     "code": 404,
     "message": "Resource not found",
-    "path": "/v1/vms/nonexistent-vm"
+    "path": "/v1/vms/doesnotexist"
   }
 }
 ```
 
 ---
 
-## Best Practices
-- Always check for error responses in your client code.
-- Use meaningful error messages when raising exceptions in custom integrations.
-- Review logs regularly for recurring errors.
-
----
-For more, see `api-reference.md` and `security.md`.
+For more, see [api-reference.md](api-reference.md) and [user-guide.md](user-guide.md).

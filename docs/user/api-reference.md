@@ -1,12 +1,13 @@
-# VyOS API Reference
+# VyOS API Reference (Full, Exhaustive)
 
-This reference provides exhaustive details for all API endpoints, parameters, and expected responses.
+This document provides a comprehensive reference for all API endpoints, request/response schemas, authentication, and usage examples for the VyOS API.
 
 ---
 
 ## Authentication
 - Use `X-API-Key` or `Authorization: Bearer <token>` in all requests.
 - Obtain API keys via `/v1/auth/users/me/api-keys/`.
+- JWT tokens are obtained via `/v1/auth/token`.
 
 ---
 
@@ -20,185 +21,128 @@ This reference provides exhaustive details for all API endpoints, parameters, an
 - `GET /v1/auth/users/me/api-keys/` — List API keys
 - `DELETE /v1/auth/users/me/api-keys/{id}` — Delete API key
 
-#### Example: Register User
-```json
-{
-  "username": "alice",
-  "password": "strongpass",
-  "roles": ["user"]
-}
-```
+### Quota Management
+- `POST /v1/quota/` — Create quota
+- `GET /v1/quota/` — List quotas
+- `PATCH /v1/quota/{quota_id}` — Update quota
 
-#### Example: Login
-```json
-{
-  "username": "alice",
-  "password": "strongpass"
-}
-```
+### Static Routes
+- `POST /v1/static-routes/` — Create static route
+- `GET /v1/static-routes/` — List static routes
+- `GET /v1/static-routes/{route_id}` — Get static route
+- `PUT /v1/static-routes/{route_id}` — Update static route
+- `DELETE /v1/static-routes/{route_id}` — Delete static route
 
----
+### Firewall
+- `POST /v1/firewall/policies/` — Create firewall policy
+- `GET /v1/firewall/policies/` — List firewall policies
+- `GET /v1/firewall/policies/{policy_id}` — Get firewall policy
+- `PUT /v1/firewall/policies/{policy_id}` — Update firewall policy
+- `DELETE /v1/firewall/policies/{policy_id}` — Delete firewall policy
+- `POST /v1/firewall/rules/` — Create firewall rule
+- `GET /v1/firewall/rules/` — List firewall rules
+- `GET /v1/firewall/rules/{rule_id}` — Get firewall rule
+- `PUT /v1/firewall/rules/{rule_id}` — Update firewall rule
+- `DELETE /v1/firewall/rules/{rule_id}` — Delete firewall rule
 
-### VM Management
-- `POST /v1/vms/provision` — Provision VM
-- `DELETE /v1/vms/{machine_id}` — Decommission VM
-- `GET /v1/ports/status` — Get all VM statuses
-
-#### Example: Provision VM
-```json
-{
-  "vm_name": "server-01",
-  "mac_address": "00:11:22:33:44:AA"
-}
-```
-
----
-
-### DHCP Pools
-- `POST /v1/dhcp-pools/` — Create DHCP pool
-- `GET /v1/dhcp-pools/` — List pools
-- `PUT /v1/dhcp-pools/{name}` — Update pool
-- `DELETE /v1/dhcp-pools/{name}` — Delete pool
-
-#### Example: Create DHCP Pool
-```json
-{
-  "name": "pool1",
-  "network": "192.168.1.0/24",
-  "range_start": "192.168.1.100",
-  "range_stop": "192.168.1.200",
-  "default_router": "192.168.1.1",
-  "dns_servers": ["8.8.8.8"],
-  "lease_time": 86400
-}
-```
-
----
-
-### VPN
-- `POST /v1/vpn/create` — Create VPN (IPsec, OpenVPN, WireGuard)
-- `GET /v1/vpn/` — List VPNs
-
-#### Example: Create WireGuard VPN
-```json
-{
-  "name": "wg1",
-  "type": "wireguard",
-  "public_key": "...",
-  "private_key": "...",
-  "allowed_ips": ["10.0.0.2/32"],
-  "listen_port": 51820,
-  "endpoint": "vpn.example.com:51820",
-  "persistent_keepalive": 25
-}
-```
-
----
+### Journal
+- `POST /v1/journal/` — Create journal entry
+- `GET /v1/journal/` — List journal entries
 
 ### Notifications
-- `POST /v1/notifications/rules/` — Create rule
-- `GET /v1/notifications/rules/` — List rules
-- `GET /v1/notifications/history/` — Query history
+- `POST /v1/notifications/rules/` — Create notification rule
+- `GET /v1/notifications/rules/` — List notification rules
+- `DELETE /v1/notifications/rules/{rule_id}` — Delete notification rule
 
-#### Example: Create Notification Rule
+### VMs
+- `POST /v1/vms/provision` — Provision a VM
+- `GET /v1/vms/status` — Get status of all VMs
+- `GET /v1/vms/{vm_id}` — Get status of a specific VM
+
+---
+
+## Schemas
+
+### UserCreate
 ```json
 {
-  "user_id": 1,
-  "event_type": "create",
-  "resource_type": "vpn",
-  "delivery_method": "email",
-  "target": "admin@example.com"
+  "username": "string",
+  "password": "string",
+  "roles": ["user", "admin"]
+}
+```
+
+### Token
+```json
+{
+  "access_token": "string",
+  "token_type": "bearer"
+}
+```
+
+### QuotaResponse
+```json
+{
+  "id": "string",
+  "limit": 10,
+  "used": 2
+}
+```
+
+### StaticRouteResponse
+```json
+{
+  "id": "string",
+  "destination": "192.168.1.0/24",
+  "next_hop": "192.168.1.1",
+  "description": "string"
+}
+```
+
+### FirewallPolicy
+```json
+{
+  "id": "string",
+  "name": "string",
+  "default_action": "accept|drop|reject",
+  "description": "string"
+}
+```
+
+### FirewallRule
+```json
+{
+  "id": "string",
+  "policy_id": "string",
+  "action": "accept|drop|reject",
+  "source": "string",
+  "destination": "string",
+  "protocol": "tcp|udp|icmp|any",
+  "description": "string"
+}
+```
+
+### VMProvisionRequest
+```json
+{
+  "vm_name": "string",
+  "mac_address": "string"
+}
+```
+
+### VMProvisionResponse
+```json
+{
+  "machine_id": "string",
+  "mac_address": "string",
+  "status": "provisioned"
 }
 ```
 
 ---
 
-### Scheduled Tasks
-- `POST /v1/scheduled-tasks/` — Create task
-- `GET /v1/scheduled-tasks/` — List tasks
-
-#### Example: Create Scheduled Task
-```json
-{
-  "user_id": 1,
-  "task_type": "backup",
-  "payload": {"target": "s3://mybucket/backup"},
-  "schedule_time": "2025-06-16T12:00:00Z",
-  "recurrence": "86400"
-}
-```
-
----
-
-### Secrets
-- `POST /v1/secrets/` — Create secret
-- `GET /v1/secrets/` — List secrets
-- `GET /v1/secrets/{id}/value` — Get secret value
-- `DELETE /v1/secrets/{id}` — Delete secret
-
-#### Example: Create Secret
-```json
-{
-  "user_id": 1,
-  "name": "apitoken",
-  "type": "api_key",
-  "value": "supersecretvalue",
-  "is_active": true
-}
-```
-
----
-
-### Integrations
-- `POST /v1/integrations/` — Create integration
-- `GET /v1/integrations/` — List integrations
-- `DELETE /v1/integrations/{id}` — Delete integration
-
-#### Example: Create Integration
-```json
-{
-  "user_id": 1,
-  "name": "webhook1",
-  "type": "webhook",
-  "target": "https://webhook.site/test",
-  "is_active": true,
-  "config": {"header": "value"}
-}
-```
-
----
-
-### Analytics
-- `GET /v1/analytics/usage` — Usage summary
-- `GET /v1/analytics/activity` — Activity report
-
----
-
-### Health & Status
-- `GET /v1/health` — Health check
-- `GET /v1/hadr/status` — HA/DR status
-- `POST /v1/hadr/failover` — Trigger failover
-
----
-
-### MCP (Model Context Protocol)
-- `POST /v1/mcp/provision` — Provision resource with context
-- `POST /v1/mcp/decommission` — Decommission resource
-
-#### Example: MCP Provision
-```json
-{
-  "context": {"user": "admin", "env": "prod"},
-  "resource": {"type": "vm", "spec": {"name": "mcp-vm", "cpu": 2, "ram": 4096}}
-}
-```
-
----
-
-## Error Responses
-All errors return a JSON object with `type`, `code`, `message`, and `path`.
-
-#### Example Error
+## Error Response Format
+All errors return a JSON object:
 ```json
 {
   "error": {
@@ -211,4 +155,38 @@ All errors return a JSON object with `type`, `code`, `message`, and `path`.
 ```
 
 ---
-For more details and advanced usage, see `user-guide.md` and `EXAMPLES.md`.
+
+## Usage Examples
+
+### Register User
+```bash
+curl -X POST "http://localhost:8000/v1/auth/users/" \
+     -H "Content-Type: application/json" \
+     -d '{"username": "alice", "password": "strongpass", "roles": ["user"]}'
+```
+
+### Login
+```bash
+curl -X POST "http://localhost:8000/v1/auth/token" \
+     -H "Content-Type: application/json" \
+     -d '{"username": "alice", "password": "strongpass"}'
+```
+
+### Provision VM
+```bash
+curl -X POST "http://localhost:8000/v1/vms/provision" \
+     -H "X-API-Key: your-api-key" \
+     -H "Content-Type: application/json" \
+     -d '{"vm_name": "server-01", "mac_address": "00:11:22:33:44:AA"}'
+```
+
+---
+
+For more examples, see `EXAMPLES.md`.
+
+---
+
+## See Also
+- [User Guide](user-guide.md)
+- [Security](security.md)
+- [Exceptions](exceptions.md)

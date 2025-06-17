@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VyOS Network Topology Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        .sidebar {
+            width: 300px;
+            background-color: #f0f0f0;
+            border-right: 1px solid #ddd;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+        
+        .main {
+            flex-grow: 1;
+            position: relative;
+        }
+        
+        #topology {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+        }
+        
+        .info-panel {
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        h1 {
+            font-size: 20px;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        
+        h2 {
+            font-size: 16px;
+            margin-top: 15px;
+            margin-bottom: 5px;
+        }
+        
+        .controls label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        input[type="checkbox"] {
+            margin-right: 5px;
+        }
+        
+        /* SVG styling */
+        .link {
+            stroke: #999;
+            stroke-opacity: 0.6;
+        }
+        
+        .node {
+            stroke: #fff;
+            stroke-width: 1.5px;
+        }
+        
+        .node text {
+            pointer-events: none;
+            font-size: 12px;
+        }
+        
+        .link-label {
+            font-size: 10px;
+            fill: #666;
+            pointer-events: none;
+        }
+        
+        .tooltip {
+            position: absolute;
+            text-align: left;
+            padding: 10px;
+            font: 12px sans-serif;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            pointer-events: none;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            z-index: 100;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Network Topology</h1>
+            
+            <div class="controls">
+                <h2>Controls</h2>
+                <label>
+                    <input type="checkbox" id="include-vms" checked>
+                    Show VMs
+                </label>
+                <label>
+                    <input type="checkbox" id="include-traffic">
+                    Show Traffic Metrics
+                </label>
+                <label>
+                    <input type="checkbox" id="show-labels" checked>
+                    Show Labels
+                </label>
+                <button id="refresh-btn">Refresh Topology</button>
+                <button id="reset-zoom-btn">Reset Zoom</button>
+            </div>
+            
+            <div id="selected-element" class="info-panel">
+                <h2>Selected Element</h2>
+                <div id="selection-details">
+                    <p>Click on an element to see details</p>
+                </div>
+            </div>
+            
+            <div class="info-panel">
+                <h2>Legend</h2>
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <svg width="20" height="20">
+                        <circle cx="10" cy="10" r="8" fill="#3498db"></circle>
+                    </svg>
+                    <span style="margin-left: 5px;">Subnet</span>
+                </div>
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <svg width="20" height="20">
+                        <circle cx="10" cy="10" r="6" fill="#2ecc71"></circle>
+                    </svg>
+                    <span style="margin-left: 5px;">Host / VM</span>
+                </div>
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <svg width="20" height="20">
+                        <circle cx="10" cy="10" r="8" fill="#e74c3c"></circle>
+                    </svg>
+                    <span style="margin-left: 5px;">Gateway</span>
+                </div>
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <svg width="20" height="20">
+                        <circle cx="10" cy="10" r="6" fill="#f39c12"></circle>
+                    </svg>
+                    <span style="margin-left: 5px;">External Endpoint</span>
+                </div>
+                <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                    <svg width="20" height="20">
+                        <line x1="5" y1="10" x2="15" y2="10" stroke="#999" stroke-width="2"></line>
+                    </svg>
+                    <span style="margin-left: 5px;">Network Connection</span>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <svg width="20" height="20">
+                        <line x1="5" y1="10" x2="15" y2="10" stroke="#f39c12" stroke-width="2" stroke-dasharray="3,3"></line>
+                    </svg>
+                    <span style="margin-left: 5px;">Port Mapping</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main">
+            <svg id="topology"></svg>
+        </div>
+    </div>
+    
+    <div class="tooltip" style="opacity: 0;"></div>
+    
+    <script>
+        // Global variables
+        let svg, width, height;
+        let simulation;
+        let tooltip;
+        let nodes = [];
+        let links = [];
+        let nodeElements;
+        let linkElements;
+        let textElements;
+        let linkLabels;
+        let transform = d3.zoomIdentity;
+        
+        // Initialize the visualization
+        function init() {
+            // Get the SVG dimensions
+            const container = document.getElementById('topology');
+            width = container.clientWidth;
+            height = container.clientHeight;
+            
+            // Select the SVG
+            svg = d3.select('#topology')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Get the tooltip
+            tooltip = d3.select('.tooltip');
+            
+            // Create zoom behavior
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 4])
+                .on('zoom', (event) => {
+                    transform = event.transform;
+                    d3.select('#topology g').attr('transform', event.transform);
+                });
+            
+            // Apply zoom to SVG
+            svg.call(zoom);
+            
+            // Create a container for nodes and links
+            svg.append('g');
+            
+            // Initialize the force simulation
+            simulation = d3.forceSimulation()
+                .force('link', d3.forceLink().id(d => d.id).distance(100))
+                .force('charge', d3.forceManyBody().strength(-500))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collision', d3.forceCollide().radius(50));
+            
+            // Add event listeners
+            document.getElementById('refresh-btn').addEventListener('click', fetchAndRenderTopology);
+            document.getElementById('reset-zoom-btn').addEventListener('click', resetZoom);
+            document.getElementById('include-vms').addEventListener('change', fetchAndRenderTopology);
+            document.getElementById('include-traffic').addEventListener('change', fetchAndRenderTopology);
+            document.getElementById('show-labels').addEventListener('change', toggleLabels);
+            
+            // Initial fetch of topology data
+            fetchAndRenderTopology();
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                width = container.clientWidth;
+                height = container.clientHeight;
+                svg.attr('width', width).attr('height', height);
+                simulation.force('center', d3.forceCenter(width / 2, height / 2));
+                simulation.restart();
+            });
+        }
+        
+        // Reset zoom
+        function resetZoom() {
+            svg.transition().duration(750).call(
+                d3.zoom().transform,
+                d3.zoomIdentity,
+                [width / 2, height / 2]
+            );
+        }
+        
+        // Toggle labels visibility
+        function toggleLabels() {
+            const showLabels = document.getElementById('show-labels').checked;
+            textElements.style('display', showLabels ? 'block' : 'none');
+            linkLabels.style('display', showLabels ? 'block' : 'none');
+        }
+        
+        // Fetch topology data from API and render
+        async function fetchAndRenderTopology() {
+            const includeVMs = document.getElementById('include-vms').checked;
+            const includeTraffic = document.getElementById('include-traffic').checked;
+            
+            try {
+                const response = await fetch(`/v1/topology/network-map?include_vms=${includeVMs}&include_traffic=${includeTraffic}`);
+                const data = await response.json();
+                
+                // Process data into nodes and links
+                processTopologyData(data);
+                
+                // Render the topology
+                renderTopology();
+                
+            } catch (error) {
+                console.error('Error fetching topology data:', error);
+                alert('Failed to load topology data');
+            }
+        }
+        
+        // Process the API response into nodes and links
+        function processTopologyData(data) {
+            nodes = [];
+            links = [];
+            
+            // Process subnets
+            data.subnets.forEach(subnet => {
+                const subnetNode = {
+                    id: subnet.id,
+                    name: subnet.name,
+                    cidr: subnet.cidr,
+                    gateway: subnet.gateway,
+                    vlan_id: subnet.vlan_id,
+                    is_isolated: subnet.is_isolated,
+                    type: subnet.type,
+                    size: 15  // Size for rendering
+                };
+                
+                // Add traffic data if available
+                if (subnet.traffic) {
+                    subnetNode.traffic = subnet.traffic;
+                }
+                
+                nodes.push(subnetNode);
+                
+                // Process hosts in this subnet
+                if (subnet.hosts && subnet.hosts.length > 0) {
+                    subnet.hosts.forEach(host => {
+                        nodes.push({
+                            id: host.id,
+                            name: host.name,
+                            ip_address: host.ip_address,
+                            mac_address: host.mac_address,
+                            type: host.type,
+                            is_vm: host.is_vm || false,
+                            size: 8  // Size for rendering
+                        });
+                        
+                        // Add link from host to subnet
+                        links.push({
+                            source: host.id,
+                            target: subnet.id,
+                            type: 'host_subnet'
+                        });
+                    });
+                }
+            });
+            
+            // Add internet gateway
+            nodes.push({
+                id: data.internet_gateway.id,
+                name: data.internet_gateway.name,
+                type: data.internet_gateway.type,
+                size: 20  // Size for rendering
+            });
+            
+            // Add external endpoints if available
+            if (data.external_endpoints && data.external_endpoints.length > 0) {
+                data.external_endpoints.forEach(endpoint => {
+                    nodes.push({
+                        id: endpoint.id,
+                        name: endpoint.name,
+                        ip: endpoint.ip,
+                        port: endpoint.port,
+                        protocol: endpoint.protocol,
+                        type: endpoint.type,
+                        description: endpoint.description,
+                        size: 10  // Size for rendering
+                    });
+                });
+            }
+            
+            // Process connections
+            data.connections.forEach(connection => {
+                links.push({
+                    source: connection.source,
+                    target: connection.target,
+                    type: connection.type,
+                    protocol: connection.protocol,
+                    external_port: connection.external_port,
+                    internal_port: connection.internal_port,
+                    description: connection.description
+                });
+            });
+        }
+        
+        // Render the topology visualization
+        function renderTopology() {
+            // Clear existing elements
+            svg.select('g').selectAll('*').remove();
+            
+            // Create the links
+            linkElements = svg.select('g')
+                .selectAll('line')
+                .data(links)
+                .enter().append('line')
+                .attr('class', 'link')
+                .attr('stroke-width', 1.5)
+                .attr('stroke', d => {
+                    if (d.type === 'port_mapping') return '#f39c12';
+                    return '#999';
+                })
+                .attr('stroke-dasharray', d => {
+                    if (d.type === 'port_mapping') return '3,3';
+                    return null;
+                })
+                .on('mouseover', function(event, d) {
+                    showLinkTooltip(event, d);
+                })
+                .on('mouseout', function() {
+                    hideTooltip();
+                });
+            
+            // Create link labels
+            linkLabels = svg.select('g')
+                .selectAll('.link-label')
+                .data(links)
+                .enter().append('text')
+                .attr('class', 'link-label')
+                .attr('text-anchor', 'middle')
+                .text(d => {
+                    if (d.type === 'port_mapping' && d.protocol) {
+                        return `${d.protocol.toUpperCase()} ${d.external_port || ''}→${d.internal_port || ''}`;
+                    }
+                    return '';
+                });
+            
+            // Create the nodes
+            nodeElements = svg.select('g')
+                .selectAll('.node')
+                .data(nodes)
+                .enter().append('circle')
+                .attr('class', 'node')
+                .attr('r', d => d.size)
+                .attr('fill', d => {
+                    switch (d.type) {
+                        case 'subnet': return '#3498db';
+                        case 'host': return d.is_vm ? '#2ecc71' : '#95a5a6';
+                        case 'gateway': return '#e74c3c';
+                        case 'external': return '#f39c12';
+                        default: return '#bdc3c7';
+                    }
+                })
+                .call(d3.drag()
+                    .on('start', dragStarted)
+                    .on('drag', dragged)
+                    .on('end', dragEnded))
+                .on('click', function(event, d) {
+                    showNodeDetails(d);
+                })
+                .on('mouseover', function(event, d) {
+                    showNodeTooltip(event, d);
+                })
+                .on('mouseout', function() {
+                    hideTooltip();
+                });
+            
+            // Add labels to nodes
+            textElements = svg.select('g')
+                .selectAll('text.node-label')
+                .data(nodes)
+                .enter().append('text')
+                .attr('class', 'node-label')
+                .attr('text-anchor', 'middle')
+                .attr('dy', d => {
+                    return d.size * -1.5;
+                })
+                .text(d => d.name);
+            
+            // Configure simulation
+            simulation.nodes(nodes)
+                .on('tick', ticked);
+            
+            simulation.force('link')
+                .links(links);
+            
+            // Start the simulation
+            simulation.alpha(1).restart();
+            
+            // Check if labels should be shown
+            toggleLabels();
+        }
+        
+        // Update positions on each tick of the simulation
+        function ticked() {
+            linkElements
+                .attr('x1', d => d.source.x)
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x)
+                .attr('y2', d => d.target.y);
+            
+            nodeElements
+                .attr('cx', d => d.x)
+                .attr('cy', d => d.y);
+            
+            textElements
+                .attr('x', d => d.x)
+                .attr('y', d => d.y);
+            
+            linkLabels
+                .attr('x', d => (d.source.x + d.target.x) / 2)
+                .attr('y', d => (d.source.y + d.target.y) / 2 - 5);
+        }
+        
+        // Drag functions
+        function dragStarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+        
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+        
+        function dragEnded(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
+        
+        // Show node tooltip
+        function showNodeTooltip(event, d) {
+            let tooltipContent = `<strong>${d.name}</strong><br>`;
+            tooltipContent += `Type: ${d.type}<br>`;
+            
+            if (d.cidr) tooltipContent += `CIDR: ${d.cidr}<br>`;
+            if (d.gateway) tooltipContent += `Gateway: ${d.gateway}<br>`;
+            if (d.vlan_id) tooltipContent += `VLAN: ${d.vlan_id}<br>`;
+            if (d.ip_address) tooltipContent += `IP: ${d.ip_address}<br>`;
+            if (d.mac_address) tooltipContent += `MAC: ${d.mac_address}<br>`;
+            if (d.is_vm) tooltipContent += `VM ID: ${d.machine_id || 'Unknown'}<br>`;
+            if (d.is_isolated !== undefined) tooltipContent += `Isolated: ${d.is_isolated ? 'Yes' : 'No'}<br>`;
+            
+            if (d.traffic) {
+                tooltipContent += `<hr>`;
+                tooltipContent += `RX: ${formatBytes(d.traffic.total_rx_bytes)}<br>`;
+                tooltipContent += `TX: ${formatBytes(d.traffic.total_tx_bytes)}<br>`;
+                tooltipContent += `Active Hosts: ${d.traffic.avg_active_hosts.toFixed(1)}<br>`;
+            }
+            
+            tooltip.html(tooltipContent)
+                .style('left', (event.pageX + 15) + 'px')
+                .style('top', (event.pageY - 28) + 'px')
+                .transition().duration(200)
+                .style('opacity', .9);
+        }
+        
+        // Show link tooltip
+        function showLinkTooltip(event, d) {
+            let tooltipContent = `<strong>Connection</strong><br>`;
+            
+            if (d.type === 'port_mapping') {
+                tooltipContent += `Type: Port Mapping<br>`;
+                if (d.protocol) tooltipContent += `Protocol: ${d.protocol.toUpperCase()}<br>`;
+                if (d.external_port) tooltipContent += `External Port: ${d.external_port}<br>`;
+                if (d.internal_port) tooltipContent += `Internal Port: ${d.internal_port}<br>`;
+                if (d.description) tooltipContent += `Description: ${d.description}<br>`;
+            } else {
+                tooltipContent += `Type: ${d.type}<br>`;
+                tooltipContent += `From: ${d.source.id || d.source}<br>`;
+                tooltipContent += `To: ${d.target.id || d.target}<br>`;
+            }
+            
+            tooltip.html(tooltipContent)
+                .style('left', (event.pageX + 15) + 'px')
+                .style('top', (event.pageY - 28) + 'px')
+                .transition().duration(200)
+                .style('opacity', .9);
+        }
+        
+        // Hide tooltip
+        function hideTooltip() {
+            tooltip.transition().duration(500)
+                .style('opacity', 0);
+        }
+        
+        // Show node details in the sidebar
+        function showNodeDetails(d) {
+            let detailsHTML = `<h3>${d.name}</h3>`;
+            detailsHTML += `<p><strong>Type:</strong> ${capitalizeFirstLetter(d.type)}</p>`;
+            
+            switch (d.type) {
+                case 'subnet':
+                    detailsHTML += `<p><strong>CIDR:</strong> ${d.cidr}</p>`;
+                    detailsHTML += `<p><strong>Gateway:</strong> ${d.gateway || 'None'}</p>`;
+                    detailsHTML += `<p><strong>VLAN ID:</strong> ${d.vlan_id || 'None'}</p>`;
+                    detailsHTML += `<p><strong>Isolated:</strong> ${d.is_isolated ? 'Yes' : 'No'}</p>`;
+                    
+                    if (d.traffic) {
+                        detailsHTML += `<h4>Traffic (Last 24h)</h4>`;
+                        detailsHTML += `<p><strong>Received:</strong> ${formatBytes(d.traffic.total_rx_bytes)}</p>`;
+                        detailsHTML += `<p><strong>Transmitted:</strong> ${formatBytes(d.traffic.total_tx_bytes)}</p>`;
+                        detailsHTML += `<p><strong>Average Active Hosts:</strong> ${d.traffic.avg_active_hosts.toFixed(1)}</p>`;
+                    }
+                    break;
+                    
+                case 'host':
+                    detailsHTML += `<p><strong>IP Address:</strong> ${d.ip_address}</p>`;
+                    detailsHTML += `<p><strong>MAC Address:</strong> ${d.mac_address}</p>`;
+                    if (d.is_vm) {
+                        detailsHTML += `<p><strong>Type:</strong> Virtual Machine</p>`;
+                        if (d.machine_id) detailsHTML += `<p><strong>Machine ID:</strong> ${d.machine_id}</p>`;
+                    }
+                    break;
+                    
+                case 'external':
+                    detailsHTML += `<p><strong>IP:</strong> ${d.ip}</p>`;
+                    detailsHTML += `<p><strong>Port:</strong> ${d.port}</p>`;
+                    detailsHTML += `<p><strong>Protocol:</strong> ${d.protocol.toUpperCase()}</p>`;
+                    if (d.description) detailsHTML += `<p><strong>Description:</strong> ${d.description}</p>`;
+                    break;
+                    
+                case 'gateway':
+                    detailsHTML += `<p>Internet Gateway</p>`;
+                    break;
+            }
+            
+            document.getElementById('selection-details').innerHTML = detailsHTML;
+        }
+        
+        // Format bytes to human-readable format
+        function formatBytes(bytes, decimals = 2) {
+            if (!bytes) return '0 Bytes';
+            
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+            
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+        
+        // Capitalize first letter
+        function capitalizeFirstLetter(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+        
+        // Initialize when the page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
