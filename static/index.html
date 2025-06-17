@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VyOS API Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2em; background: #f7f7fa; }
+        h1 { color: #2c3e50; }
+        .info, .section { margin: 1em 0; padding: 1em; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px #eee; }
+        .api-link { color: #2980b9; text-decoration: none; }
+        .section { margin-top: 2em; }
+        .section h2 { margin-top: 0; }
+        .btn { background: #2980b9; color: #fff; border: none; padding: 0.5em 1em; border-radius: 4px; cursor: pointer; }
+        .btn:disabled { background: #ccc; }
+        .input { padding: 0.5em; border: 1px solid #ccc; border-radius: 4px; }
+        .result { margin-top: 1em; font-size: 0.95em; color: #333; }
+    </style>
+    <script>
+        async function fetchStatus() {
+            const res = await fetch('/v1/status');
+            const data = await res.json();
+            document.getElementById('status-result').textContent = JSON.stringify(data, null, 2);
+        }
+        async function fetchBackupList() {
+            const res = await fetch('/v1/config/backup/list');
+            const data = await res.json();
+            document.getElementById('backup-list-result').textContent = JSON.stringify(data, null, 2);
+        }
+        async function triggerBackup() {
+            document.getElementById('backup-btn').disabled = true;
+            const res = await fetch('/v1/config/backup', { method: 'POST' });
+            const data = await res.json();
+            document.getElementById('backup-result').textContent = JSON.stringify(data, null, 2);
+            document.getElementById('backup-btn').disabled = false;
+        }
+        async function fetchQuota() {
+            try {
+                const res = await fetch('/quota/');
+                if (!res.ok) throw new Error('Not authenticated or error fetching quota');
+                const data = await res.json();
+                document.getElementById('quota-result').textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+                document.getElementById('quota-result').textContent = 'Error: ' + e;
+            }
+        }
+        async function fetchNotifications() {
+            const res = await fetch('/notifications/rules/');
+            const data = await res.json();
+            let html = '';
+            data.forEach(rule => {
+                html += `<div><b>${rule.event_type}</b> → <i>${rule.delivery_method}</i> <span title="${rule.target}">${rule.target}</span> ${rule.is_active ? '🟢' : '🔴'}</div>`;
+            });
+            document.getElementById('notifications-result').innerHTML = html || 'No rules.';
+        }
+        async function createNotificationRule() {
+            const rule = {
+                event_type: document.getElementById('notif-event-type').value,
+                resource_type: document.getElementById('notif-resource-type').value || null,
+                delivery_method: document.getElementById('notif-delivery-method').value,
+                target: document.getElementById('notif-target').value
+            };
+            const res = await fetch('/notifications/rules/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(rule)
+            });
+            const data = await res.json();
+            if (data.id) {
+                document.getElementById('notif-create-result').textContent = 'Rule created!';
+            } else {
+                document.getElementById('notif-create-result').textContent = 'Error: ' + (data.detail || JSON.stringify(data));
+            }
+            fetchNotifications();
+        }
+        async function fetchNotificationHistory() {
+            const res = await fetch('/notifications/history/');
+            const data = await res.json();
+            let html = '';
+            data.forEach(h => {
+                html += `<div>${statusIcon(h.status)} <b>${h.event_type}</b> on <i>${h.resource_type || ''}</i> → <span title="${h.target}">${h.target}</span> <span title="${h.timestamp}">${h.timestamp.split('T')[0]}</span> ${h.error ? '❗' : ''}</div>`;
+            });
+            document.getElementById('notif-history-result').innerHTML = html || 'No notifications.';
+        }
+        function statusIcon(status) {
+            if (status === 'delivered') return '✅';
+            if (status === 'failed') return '❌';
+            if (status === 'pending') return '⏳';
+            return '';
+        }
+        async function fetchScheduledTasks() {
+            const res = await fetch('/scheduled-tasks/');
+            const data = await res.json();
+            let html = '';
+            data.forEach(task => {
+                html += `<div><b>${task.task_type}</b> at <span title="${task.schedule_time}">${task.schedule_time.split('T')[0]}</span> [${task.status}]</div>`;
+            });
+            document.getElementById('scheduled-tasks-result').innerHTML = html || 'No scheduled tasks.';
+        }
+        async function createScheduledTask() {
+            const task = {
+                task_type: document.getElementById('sched-task-type').value,
+                payload: JSON.parse(document.getElementById('sched-payload').value),
+                schedule_time: new Date(document.getElementById('sched-schedule-time').value).toISOString(),
+                recurrence: document.getElementById('sched-recurrence').value || null,
+                user_id: 1 // For demo; in production, use actual user context
+            };
+            const res = await fetch('/scheduled-tasks/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(task)
+            });
+            const data = await res.json();
+            if (data.id) {
+                document.getElementById('sched-create-result').textContent = 'Task scheduled!';
+            } else {
+                document.getElementById('sched-create-result').textContent = 'Error: ' + (data.detail || JSON.stringify(data));
+            }
+            fetchScheduledTasks();
+        }
+        async function fetchSecrets() {
+            const res = await fetch('/secrets/');
+            const data = await res.json();
+            let html = '';
+            data.forEach(secret => {
+                html += `<div><b>${secret.name}</b> <i>${secret.type}</i> [${secret.is_active ? '🟢' : '🔴'}]</div>`;
+            });
+            document.getElementById('secrets-result').innerHTML = html || 'No secrets.';
+        }
+        async function createSecret() {
+            const secret = {
+                name: document.getElementById('secret-name').value,
+                type: document.getElementById('secret-type').value,
+                value: document.getElementById('secret-value').value
+            };
+            const res = await fetch('/secrets/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(secret)
+            });
+            const data = await res.json();
+            if (data.id) {
+                document.getElementById('secret-create-result').textContent = 'Secret added!';
+            } else {
+                document.getElementById('secret-create-result').textContent = 'Error: ' + (data.detail || JSON.stringify(data));
+            }
+            fetchSecrets();
+        }
+        async function fetchIntegrations() {
+            const res = await fetch('/integrations/');
+            const data = await res.json();
+            let html = '';
+            data.forEach(integration => {
+                html += `<div><b>${integration.name}</b> <i>${integration.type}</i> <span title="${integration.target}">${integration.target}</span> [${integration.is_active ? '🟢' : '🔴'}]</div>`;
+            });
+            document.getElementById('integrations-result').innerHTML = html || 'No integrations.';
+        }
+        async function createIntegration() {
+            const integration = {
+                name: document.getElementById('integration-name').value,
+                type: document.getElementById('integration-type').value,
+                target: document.getElementById('integration-target').value
+            };
+            const res = await fetch('/integrations/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(integration)
+            });
+            const data = await res.json();
+            if (data.id) {
+                document.getElementById('integration-create-result').textContent = 'Integration added!';
+            } else {
+                document.getElementById('integration-create-result').textContent = 'Error: ' + (data.detail || JSON.stringify(data));
+            }
+            fetchIntegrations();
+        }
+        window.onload = function() {
+            fetchStatus();
+            fetchBackupList();
+            fetchQuota();
+            fetchNotifications();
+            fetchNotificationHistory();
+            fetchScheduledTasks();
+            fetchSecrets();
+            fetchIntegrations();
+        };
+    </script>
+</head>
+<body>
+    <h1>VyOS API Dashboard</h1>
+    <div class="info">
+        <p>Welcome to the VyOS API Web UI. Use the sections below to interact with the API and view system status.</p>
+        <p>See <a class="api-link" href="/docs" target="_blank">API Docs</a> for full reference and try-it-out features.</p>
+    </div>
+    <div class="section">
+        <h2>System Status</h2>
+        <pre id="status-result">Loading...</pre>
+        <button class="btn" onclick="fetchStatus()">Refresh Status</button>
+    </div>
+    <div class="section">
+        <h2>Config Backups</h2>
+        <button class="btn" id="backup-btn" onclick="triggerBackup()">Create Backup</button>
+        <div class="result" id="backup-result"></div>
+        <h3>Backup List</h3>
+        <pre id="backup-list-result">Loading...</pre>
+        <button class="btn" onclick="fetchBackupList()">Refresh List</button>
+    </div>
+    <div class="section">
+        <h2>Quota & Usage</h2>
+        <button class="btn" onclick="fetchQuota()">Refresh Quota</button>
+        <pre id="quota-result">Loading...</pre>
+    </div>
+    <div class="section">
+        <h2>Quick API Test</h2>
+        <form onsubmit="event.preventDefault(); fetch(document.getElementById('api-path').value).then(r=>r.json()).then(j=>document.getElementById('api-test-result').textContent=JSON.stringify(j,null,2)).catch(e=>document.getElementById('api-test-result').textContent='Error: '+e);">
+            <input class="input" id="api-path" value="/v1/status" size="30" />
+            <button class="btn" type="submit">GET</button>
+        </form>
+        <pre id="api-test-result"></pre>
+    </div>
+    <div class="section">
+        <h2>Notifications</h2>
+        <button class="btn" onclick="fetchNotifications()">Refresh Notifications</button>
+        <pre id="notifications-result">Loading...</pre>
+        <h3>Create Notification Rule</h3>
+        <form onsubmit="event.preventDefault(); createNotificationRule();">
+            <input class="input" id="notif-event-type" placeholder="Event Type (e.g. create)" required title="Event type to trigger notification (e.g. create, update, delete)" />
+            <input class="input" id="notif-resource-type" placeholder="Resource Type (optional)" title="Resource type to match (e.g. vm, firewall_policy)" />
+            <input class="input" id="notif-delivery-method" placeholder="Delivery (email/webhook)" required title="Delivery method: email or webhook" />
+            <input class="input" id="notif-target" placeholder="Target (email or URL)" required title="Email address or webhook URL" />
+            <button class="btn" type="submit">Add Rule</button>
+        </form>
+        <div class="result" id="notif-create-result"></div>
+        <h3>Notification History</h3>
+        <button class="btn" onclick="fetchNotificationHistory()">Refresh History</button>
+        <pre id="notif-history-result">Loading...</pre>
+    </div>
+    <div class="section">
+        <h2>Scheduled Tasks</h2>
+        <button class="btn" onclick="fetchScheduledTasks()">Refresh Scheduled Tasks</button>
+        <pre id="scheduled-tasks-result">Loading...</pre>
+        <h3>Schedule New Task</h3>
+        <form onsubmit="event.preventDefault(); createScheduledTask();">
+            <input class="input" id="sched-task-type" placeholder="Task Type (e.g. backup)" required title="Type of task (e.g. backup, config_change)" />
+            <input class="input" id="sched-payload" placeholder='Payload (JSON)' required title="Task payload as JSON (e.g. {\"target\":\"all\"})" />
+            <input class="input" id="sched-schedule-time" type="datetime-local" required title="Schedule time (UTC)" />
+            <input class="input" id="sched-recurrence" placeholder="Recurrence (optional)" title="Recurrence (e.g. cron, interval)" />
+            <button class="btn" type="submit">Add Task</button>
+        </form>
+        <div class="result" id="sched-create-result"></div>
+    </div>
+    <div class="section">
+        <h2>Secrets Management</h2>
+        <button class="btn" onclick="fetchSecrets()">Refresh Secrets</button>
+        <pre id="secrets-result">Loading...</pre>
+        <h3>Add Secret</h3>
+        <form onsubmit="event.preventDefault(); createSecret();">
+            <input class="input" id="secret-name" placeholder="Name" required />
+            <input class="input" id="secret-type" placeholder="Type (e.g. api_key)" required />
+            <input class="input" id="secret-value" placeholder="Value" required type="password" />
+            <button class="btn" type="submit">Add Secret</button>
+        </form>
+        <div class="result" id="secret-create-result"></div>
+    </div>
+    <div class="section">
+        <h2>External Integrations</h2>
+        <button class="btn" onclick="fetchIntegrations()">Refresh Integrations</button>
+        <pre id="integrations-result">Loading...</pre>
+        <h3>Add Integration</h3>
+        <form onsubmit="event.preventDefault(); createIntegration();">
+            <input class="input" id="integration-name" placeholder="Name" required />
+            <input class="input" id="integration-type" placeholder="Type (e.g. webhook)" required />
+            <input class="input" id="integration-target" placeholder="Target (URL or plugin)" required />
+            <button class="btn" type="submit">Add Integration</button>
+        </form>
+        <div class="result" id="integration-create-result"></div>
+    </div>
+</body>
+</html>

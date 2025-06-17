@@ -8,3 +8,5 @@ slowapi
 aiosqlite
 httpx
 passlib[bcrypt]
+pytest
+pytest-asyncio

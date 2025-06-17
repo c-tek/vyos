@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from schemas import MCPRequest, MCPResponse, VMProvisionRequest, VMDecommissionRequest
+from schemas import MCPRequest, MCPResponse, VMProvisionRequest # Removed VMDecommissionRequest
 from crud import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
-from routers import provision_vm, decommission_vm # Import the actual API functions
+import routers
 from models import User # Assuming MCP operations might need a user context, even if mocked
 
 router = APIRouter()
@@ -24,7 +24,7 @@ async def mcp_provision(req: MCPRequest, db: AsyncSession = Depends(get_db)):
         mock_admin_user = User(id=0, username="mcp_admin", hashed_password="", roles="admin")
 
         # Call the core provisioning logic
-        provision_response = await provision_vm(vm_provision_data, db, mock_admin_user)
+        provision_response = await routers.provision_vm(vm_provision_data, db, mock_admin_user)
         
         return MCPResponse(context={"status": "success", **req.context}, output=provision_response.model_dump())
     except HTTPException as e:
@@ -46,7 +46,7 @@ async def mcp_decommission(req: MCPRequest, db: AsyncSession = Depends(get_db)):
         mock_admin_user = User(id=0, username="mcp_admin", hashed_password="", roles="admin")
 
         # Call the core decommissioning logic
-        decommission_response = await decommission_vm(vm_decommission_data.vm_name, db, mock_admin_user)
+        decommission_response = await routers.decommission_vm(vm_decommission_data.vm_name, db, mock_admin_user)
         
         return MCPResponse(context={"status": "success", **req.context}, output=decommission_response)
     except HTTPException as e:

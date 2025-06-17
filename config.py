@@ -29,3 +29,14 @@ def get_vyos_config():
 async def get_async_db():
     async with AsyncSessionLocal() as session:
         yield session
+
+def get_settings():
+    # Stub for compatibility with test/conftest.py
+    return {
+        "DATABASE_URL": DATABASE_URL,
+        "ASYNC_DATABASE_URL": ASYNC_DATABASE_URL,
+        "VYOS_IP": os.getenv("VYOS_IP", "192.168.64.1"),
+        "VYOS_API_PORT": int(os.getenv("VYOS_API_PORT", 443)),
+        "VYOS_API_KEY_ID": os.getenv("VYOS_API_KEY_ID", "netauto"),
+        "VYOS_API_KEY": os.getenv("VYOS_API_KEY", "changeme"),
+    }

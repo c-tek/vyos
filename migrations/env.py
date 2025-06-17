@@ -56,18 +56,17 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    from sqlalchemy import create_engine
-
-    # get the SQLAlchemy URL from the alembic config
-    url = config.get_main_option("sqlalchemy.url")
-
-    # create a synchronous engine for Alembic's use
-    # this is important because Alembic itself runs synchronously
-    connectable = create_engine(url, poolclass=pool.NullPool)
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection, 
+            target_metadata=target_metadata,
+            render_as_batch=True  # Enable batch mode for SQLite
         )
 
         with context.begin_transaction():

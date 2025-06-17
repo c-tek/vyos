@@ -32,10 +32,10 @@ htmlcov/
 # Misc
 *.swp
 *.swo
-*.log
 
-#internal files
-docs/processes.md
-docs/description_and_roadmap.md
-vyos.code-workspaces
-.gitignore
+# Ignore everything in docs except user and dev folders
+/docs/*
+!/docs/user/
+!/docs/dev/
+
+
