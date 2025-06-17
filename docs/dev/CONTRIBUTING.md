@@ -1,4 +1,6 @@
-# Contributing to VyOS API (2025)
+# Contributing to VyOS API (2025) - DISABLED
+
+**NOTE: This project is currently in active development by the core team. External contributions are temporarily disabled while we implement major improvements.**
 
 Thank you for your interest in contributing!
 
