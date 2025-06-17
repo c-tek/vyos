@@ -12,6 +12,15 @@ VyOS API now supports the creation and management of multiple subnets, each with
 - Setting up port mappings per subnet for service accessibility
 - Managing precise inter-subnet connectivity rules for granular access control
 
+## Related Features
+
+Before working with subnets, you may want to review:
+- [DHCP Management](#dhcp-assignment) and [DHCP Templates](dhcp-templates.md) for IP assignment
+- [Port Mapping](#port-mapping) for service exposure
+- [Analytics](analytics.md) for traffic monitoring
+- [Bulk Operations](bulk-operations.md) for mass VM assignment
+- [Network Topology](topology-visualization.md) for visualization
+
 ## Subnet Management
 
 ### Creating a Subnet
