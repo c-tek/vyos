@@ -1,15 +1,84 @@
-# VyOS API Reference (Full, Exhaustive)
+# API Reference (Enhanced)
 
-This document provides a comprehensive reference for all API endpoints, request/response schemas, authentication, and usage examples for the VyOS API.
+**Note**: This is the enhanced API reference with cross-references. For detailed endpoint documentation with examples, see [api-reference-enhanced.md](api-reference-enhanced.md).
 
----
+This document provides a quick reference for all VyOS API endpoints.
 
 ## Authentication
-- Use `X-API-Key` or `Authorization: Bearer <token>` in all requests.
-- Obtain API keys via `/v1/auth/users/me/api-keys/`.
-- JWT tokens are obtained via `/v1/auth/token`.
 
----
+All API endpoints require authentication via JWT tokens obtained from the `/token` endpoint.
+
+### Related Features
+- [User management](user-guide.md#user-management)
+- [Security](security.md)
+
+## Core Endpoints
+
+### VM Management
+- `POST /v1/vms/provision` - Provision new VM
+- `GET /v1/vms/status/{machine_id}` - Get VM status
+- `DELETE /v1/vms/{machine_id}` - Decommission VM
+
+### Related Features
+- [Subnet management](#subnet-management)
+- [Bulk operations](bulk-operations.md)
+
+### Subnet Management
+- `GET /v1/subnets/` - List subnets
+- `POST /v1/subnets/` - Create subnet
+- `PUT /v1/subnets/{id}` - Update subnet
+- `DELETE /v1/subnets/{id}` - Delete subnet
+
+### Related Features
+- [DHCP management](#dhcp-management)
+- [Port mapping](#port-mapping)
+- [Network isolation](subnet-management.md#isolation)
+
+### DHCP Management
+- `GET /v1/static-dhcp/` - List DHCP assignments
+- `POST /v1/static-dhcp/` - Create assignment
+- `DELETE /v1/static-dhcp/{id}` - Delete assignment
+
+### Related Features
+- [DHCP templates](dhcp-templates.md)
+- [Subnet management](#subnet-management)
+
+### Port Mapping
+- `GET /v1/port-mappings/` - List port mappings
+- `POST /v1/port-mappings/` - Create mapping
+- `PUT /v1/port-mappings/{id}` - Update mapping
+- `DELETE /v1/port-mappings/{id}` - Delete mapping
+
+### Related Features
+- [Firewall rules](#firewall-management)
+- [Network topology](topology-visualization.md)
+
+### Analytics
+- `GET /v1/analytics/subnet-traffic/summary` - Traffic summary
+- `GET /v1/analytics/subnet-traffic/time-series` - Time series data
+
+### Related Features
+- [Network monitoring](analytics.md)
+- [Topology visualization](topology-visualization.md)
+
+### Firewall Management
+- `GET /v1/firewall/policies/` - List policies
+- `POST /v1/firewall/policies/` - Create policy
+- `GET /v1/firewall/policies/{id}/rules` - List rules
+
+### Related Features
+- [Subnet isolation](subnet-management.md#isolation)
+- [Security configuration](security.md)
+
+### Topology
+- `GET /v1/topology/network-map` - Network topology
+- `GET /v1/topology/subnet-connections` - Connection matrix
+
+### Related Features
+- [Network visualization](topology-visualization.md)
+- [Analytics](#analytics)
+
+For detailed examples and request/response schemas, see the [enhanced API reference](api-reference-enhanced.md).
 
 ## Endpoints
 

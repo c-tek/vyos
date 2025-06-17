@@ -212,4 +212,4 @@ async def startup_event():
 if __name__ == "__main__":
     import uvicorn
     api_port = int(os.getenv("VYOS_API_PORT", "8000"))
-    uvicorn.run(app, host="0.0.0.0", port=api_port, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=api_port, reload=False)
