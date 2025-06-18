@@ -32,10 +32,13 @@ htmlcov/
 # Misc
 *.swp
 *.swo
+_int/
+
 
 # Ignore everything in docs except user and dev folders
 /docs/*
 !/docs/user/
 !/docs/dev/
+
 
 

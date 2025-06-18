@@ -1,20 +1,12 @@
-# 📚 Documentation Moved
+# 📚 VyOS API Examples
 
-This file has been relocated to provide better organization.
+**This file has been relocated for better organization.**
 
-## 👥 **For End Users**
-See **[`docs/user/EXAMPLES.md`](user/EXAMPLES.md)** for:
-- Real-world usage examples
-- Common use cases and scenarios
-- Step-by-step implementation guides
-- Integration examples
-
-## 🛠️ **For Developers**  
-See **[`docs/dev/`](dev/)** for:
-- Code examples and snippets
-- API integration examples
-- Development workflow examples
+## 🎯 **Quick Access**
+- **👥 User Examples**: See **[`docs/user/EXAMPLES.md`](user/EXAMPLES.md)** for real-world usage examples
+- **🛠️ Developer Examples**: See **[`docs/dev/`](dev/)** for code and development examples
+- **📖 Main Documentation**: See **[`docs/README.md`](README.md)** for complete documentation overview
 
 ---
 
-**Quick Navigation**: [📖 Main Documentation](README.md) | [👥 User Examples](user/EXAMPLES.md) | [🛠️ Developer Guide](dev/README.md)
+**� Most users want**: **[User Examples](user/EXAMPLES.md)** - Real-world API usage scenarios and step-by-step guides.

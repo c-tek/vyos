@@ -8,7 +8,7 @@ This project provides a FastAPI-based service for managing static DHCP assignmen
 - Template and granular port management (enable/disable/pause/delete)
 - Status endpoints for dashboard integration
 - Ready for MCP integration
-- **Authentication**: Now supports both API Key (X-API-Key) and local JWT (Authorization: Bearer ...). See [Security Guide](docs/security.md) and [Example Usage](docs/EXAMPLES.md) for details.
+- **Authentication**: Now supports both API Key (X-API-Key) and local JWT (Authorization: Bearer ...). See [Security Guide](docs/security-guide.md) and [Example Usage](docs/user/EXAMPLES.md) for details.
 - **Full Asynchronous Support:** All database and VyOS API calls are now asynchronous, improving concurrency and scalability.
 - **Enhanced Error Handling:** Provides clearer, more consistent, and specific error responses with custom exception classes and standardized schemas.
 - **Secure VyOS API Communication:** Enforces SSL/TLS certificate verification for communication with the VyOS router.
@@ -19,15 +19,15 @@ This project provides a FastAPI-based service for managing static DHCP assignmen
 - **Database Migrations:** Controlled and versioned evolution of the database schema using Alembic.
 
 ## Documentation
-- [Installation Guide](docs/vyos-installation.md)
+- [Installation Guide](docs/installation-guide.md)
 - [API Reference](docs/api-reference.md)
-- [Example Usage](docs/EXAMPLES.md)
-- [Security Guide](docs/security.md)
-- [Development Processes](docs/processes.md)
-- [How to Extend](docs/how-to-extend.md)
-- [Operational Guide](docs/operations.md)
-- [Monitoring Guide](docs/monitoring.md)
-- [Database Migrations Guide](docs/database-migrations.md)
+- [Example Usage](docs/user/EXAMPLES.md)
+- [Security Guide](docs/security-guide.md)
+- [Development Processes](docs/dev/processes.md)
+- [How to Extend](docs/dev/how-to-extend.md)
+- [Operations Guide](docs/operations/README.md)
+- [Monitoring Guide](docs/monitoring-guide.md)
+- [Troubleshooting Guide](docs/troubleshooting.md)
 
 ## Requirements
 
@@ -39,11 +39,11 @@ pip install -r requirements.txt
 
 ## Running as a Service (systemd)
 
-For detailed instructions on how to run the API as a production service using systemd, please refer to the [Installation Guide](docs/vyos-installation.md#72-production-systemd-example).
+For detailed instructions on how to run the API as a production service using systemd, please refer to the [Installation Guide](docs/installation-guide.md#production-deployment).
 
 ## Optional: install.sh for Debian/Ubuntu
 
-An automated installation script for Debian/Ubuntu is available. For detailed usage and configuration, please refer to the [Installation Guide](docs/vyos-installation.md#optional-installsh-for-debianubuntu).
+An automated installation script for Debian/Ubuntu is available. For detailed usage and configuration, please refer to the [Installation Guide](docs/installation-guide.md#automated-installation).
 
 ## VyOS OS Note
 - VyOS is Debian-based, but not all images have Python3/pip/systemd for user services.
@@ -51,26 +51,26 @@ An automated installation script for Debian/Ubuntu is available. For detailed us
 - Document both options in the install guide.
 
 ## Configuration
-The API is configured via environment variables for core settings (e.g., database, VyOS connection) and via API endpoints for dynamic resources like API keys, IP pools, and port pools. For a comprehensive guide on configuring the application, please refer to the [Configuration section in the Installation Guide](docs/vyos-installation.md#6-configuration).
+The API is configured via environment variables for core settings (e.g., database, VyOS connection) and via API endpoints for dynamic resources like API keys, IP pools, and port pools. For a comprehensive guide on configuring the application, please refer to the [Installation Guide](docs/installation-guide.md#configuration).
 
 ## Running the API
-For detailed instructions on running the API in development or production, please refer to the [Running the API section in the Installation Guide](docs/vyos-installation.md#7-running-the-api).
+For detailed instructions on running the API in development or production, please refer to the [Installation Guide](docs/installation-guide.md#running-the-api).
 
 ## Quick Start for VyOS Integration
-For a full step-by-step tutorial on integrating this API with your VyOS router, including VyOS configuration, API setup, and usage examples, please refer to the comprehensive [Installation Guide](docs/vyos-installation.md).
+For a full step-by-step tutorial on integrating this API with your VyOS router, including VyOS configuration, API setup, and usage examples, please refer to the comprehensive [Installation Guide](docs/installation-guide.md).
 
 ## Usage
 
-For detailed usage examples and API endpoint specifications, please refer to the [API Reference](docs/api-reference.md) and [Example Usage](docs/EXAMPLES.md) documentation.
+For detailed usage examples and API endpoint specifications, please refer to the [API Reference](docs/api-reference.md) and [Example Usage](docs/user/EXAMPLES.md) documentation.
 
 ## Security
 - **Authentication**: The API supports both API Key (X-API-Key) and JWT (Authorization: Bearer ...) authentication.
 - **API Key Management**: API keys are now managed dynamically via dedicated admin API endpoints, allowing for creation, retrieval, update, and deletion of keys with varying privileges.
 - **JWT Authentication**: Provides robust user management with roles. Users obtain a JWT token via login and use it for authenticated requests.
 - **Enhanced Error Handling**: Detailed error responses are provided for security-related issues (e.g., invalid/expired API keys, forbidden access).
-- **VyOS API SSL/TLS Verification**: Communication with the VyOS router now enforces SSL/TLS certificate verification. Refer to the [Installation Guide](docs/vyos-installation.md) for details on configuring VyOS with SSL and managing trusted CAs.
+- **VyOS API SSL/TLS Verification**: Communication with the VyOS router now enforces SSL/TLS certificate verification. Refer to the [Installation Guide](docs/installation-guide.md) for details on configuring VyOS with SSL and managing trusted CAs.
 
-For detailed information on authentication methods and security best practices, refer to the [Security Guide](docs/security.md) and [Example Usage](docs/EXAMPLES.md).
+For detailed information on authentication methods and security best practices, refer to the [Security Guide](docs/security-guide.md) and [Example Usage](docs/user/EXAMPLES.md).
 
 ## MCP Integration
 - **MCP Integration:** Core VM provisioning and decommissioning operations are exposed via MCP endpoints for AI/orchestration workflows.
@@ -124,10 +124,10 @@ curl -X POST "http://localhost:8000/vms/provision" \
 ```
 
 ## Troubleshooting
-For common issues and their resolutions, please refer to the [Troubleshooting section in the Installation Guide](docs/vyos-installation.md#10-troubleshooting).
+For common issues and their resolutions, please refer to the [Troubleshooting Guide](docs/troubleshooting.md).
 
 ## Discoverability
-The project includes an `install.sh` script and a `vyos-api.service` systemd unit file for automated setup and running the API as a service. These are detailed in the [Installation Guide](docs/vyos-installation.md).
+The project includes an `install.sh` script and a `vyos-api.service` systemd unit file for automated setup and running the API as a service. These are detailed in the [Installation Guide](docs/installation-guide.md).
 
 # VyOS API Server
 
